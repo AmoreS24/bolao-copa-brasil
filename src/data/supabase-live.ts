@@ -45,7 +45,7 @@ const DEFAULT_COMPETITION = "Copa do Mundo 2026";
 
 function getSupabaseServer() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     return null;
@@ -131,7 +131,11 @@ function slugFromTeams(homeTeam: string, awayTeam: string) {
 function matchFromRow(row: DbRow, prize: number, confirmedGuesses: number, index = 0): LiveMatch {
   const homeTeam = stringValue(row, ["time_da_casa", "home_team", "mandante", "casa"], "Brasil");
   const awayTeam = stringValue(row, ["time_visitante", "away_team", "visitante", "adversario"], "Adversário");
-  const startsAt = stringValue(row, ["data_de_correspondencia", "starts_at", "data", "data_jogo"], new Date().toISOString());
+  const startsAt = stringValue(
+    row,
+    ["data_de_correspondência", "data_de_correspondencia", "starts_at", "data", "data_jogo"],
+    new Date().toISOString()
+  );
   const bettingClosesAt = stringValue(row, ["apostas_encerram_em", "betting_closes_at", "encerramento"], startsAt);
   const capacity = numberValue(row, ["limite_apostas", "capacidade", "vagas"], DEFAULT_CAPACITY);
   const rowPrize = numberValue(row, ["premio", "premio_maximo", "premio_estimado", "acumulado"], prize);
@@ -169,7 +173,12 @@ export async function getPrizeValue() {
     return 0;
   }
 
-  const { data } = await supabase.from("premio_maximo").select("*").limit(1).maybeSingle();
+  const { data, error } = await supabase.from("premio_maximo").select("*").limit(1).maybeSingle();
+
+  if (error) {
+    return 0;
+  }
+
   const row = (data ?? {}) as DbRow;
 
   return numberValue(row, ["valor", "valor_atual", "premio", "premio_maximo", "total", "amount"], 0);
@@ -188,9 +197,9 @@ export async function getConfirmedGuessesCount(matchId?: string) {
     query = query.eq("jogo_id", matchId);
   }
 
-  const { count } = await query;
+  const { count, error } = await query;
 
-  return count ?? 0;
+  return error ? 0 : count ?? 0;
 }
 
 export async function getUpcomingMatches() {
@@ -201,11 +210,14 @@ export async function getUpcomingMatches() {
     return [];
   }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("jogos")
     .select("*")
-    .gte("data_de_correspondencia", new Date().toISOString())
-    .order("data_de_correspondencia", { ascending: true });
+    .order("data_de_correspondência", { ascending: true });
+
+  if (error) {
+    return [];
+  }
 
   const rows = (data ?? []) as DbRow[];
 
@@ -235,10 +247,14 @@ export async function getRankingPlayers(limit = 10): Promise<LiveRankingPlayer[]
     return [];
   }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("torcida_votos")
     .select("*, perfis(*)")
     .limit(limit);
+
+  if (error) {
+    return [];
+  }
 
   const rows = ((data ?? []) as DbRow[]).map((row, index) => {
     const profile = (row.perfis ?? {}) as DbRow;

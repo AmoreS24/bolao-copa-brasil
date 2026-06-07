@@ -8,6 +8,14 @@ export const supabase =
     ? createClient(supabaseUrl, supabaseAnonKey)
     : null;
 
+export type DatabaseGame = {
+  id: string;
+  time_da_casa: string;
+  time_visitante: string;
+  "data_de_correspondência": string;
+  apostas_encerram_em: string;
+};
+
 export type DatabaseProfile = {
   id: string;
   name: string;
