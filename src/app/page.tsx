@@ -1,5 +1,5 @@
 import { ArrowRight, CalendarDays, Clock, MapPin, Trophy, Users, Wallet } from "lucide-react";
-import { getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
+import { getJogosDebugInfo, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 import { MatchCountdown } from "@/components/match-countdown";
 import { AnimatedScoreboard } from "@/components/animated-scoreboard";
@@ -10,11 +10,18 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [match, upcomingBrazilMatches, rankingPlayers] = await Promise.all([
+  const [debugInfo, match, upcomingBrazilMatches, rankingPlayers] = await Promise.all([
+    getJogosDebugInfo(),
     getNextMatch(),
     getUpcomingMatches(),
     getRankingPlayers(10)
   ]);
+
+  console.log("[Home Supabase jogos debug]", {
+    erroDaConsulta: debugInfo.error,
+    quantidadeDeRegistros: debugInfo.count,
+    primeiroRegistro: debugInfo.firstRecord
+  });
 
   if (!match) {
     return (
