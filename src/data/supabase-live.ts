@@ -7,6 +7,7 @@ export type LiveMatch = {
   id: string;
   homeTeam: string;
   awayTeam: string;
+  correspondenceDate: string;
   startsAt: string;
   bettingClosesAt: string;
   dateLabel: string;
@@ -42,6 +43,7 @@ const ENTRY_VALUE = 10;
 const OPERATIONAL_FEE = 1.99;
 const DEFAULT_CAPACITY = 400;
 const DEFAULT_COMPETITION = "Copa do Mundo 2026";
+const GAME_COLUMNS = "id,time_da_casa,time_visitante,data_de_correspondência,apostas_encerram_em";
 
 function getSupabaseServer() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -144,6 +146,7 @@ function matchFromRow(row: DbRow, prize: number, confirmedGuesses: number, index
     id: stringValue(row, ["id", "slug"], slugFromTeams(homeTeam, awayTeam)),
     homeTeam,
     awayTeam,
+    correspondenceDate: startsAt,
     startsAt,
     bettingClosesAt,
     dateLabel: dateLabel(startsAt),
@@ -212,8 +215,7 @@ export async function getUpcomingMatches() {
 
   const { data, error } = await supabase
     .from("jogos")
-    .select("*")
-    .order("data_de_correspondência", { ascending: true });
+    .select(GAME_COLUMNS as "*");
 
   if (error) {
     return [];

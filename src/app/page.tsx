@@ -63,6 +63,10 @@ export default async function Home() {
               </p>
             </div>
             <div className="mx-auto mt-5 grid w-full max-w-2xl gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur md:p-4 sm:col-span-2">
+                <p className="text-xs font-black uppercase text-brasil-yellow">Data do jogo</p>
+                <p className="mt-1 text-2xl font-black">{match.dateLabel}, {match.timeLabel}</p>
+              </div>
               <div className="rounded-lg border border-brasil-yellow/45 bg-black/32 p-3 text-white shadow-field backdrop-blur md:p-4">
                 <p className="text-xs font-black uppercase text-brasil-yellow">🏆 Prêmio estimado</p>
                 <p className="mt-1 text-3xl font-black">{currency(match.exactPool)}</p>
