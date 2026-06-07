@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import { CalendarDays, CircleDollarSign, Clock, MapPin, Trophy, Users } from "lucide-react";
-import { nextBrazilMatch } from "@/data/next-match";
+import { getMatchById, getProfileSummary } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { PredictionBuilder } from "@/components/prediction-builder";
 
-export default function GamePage({ params }: { params: { id: string } }) {
-  const match = params.id === nextBrazilMatch.id ? nextBrazilMatch : null;
+export const dynamic = "force-dynamic";
+
+export default async function GamePage({ params }: { params: { id: string } }) {
+  const [match, profile] = await Promise.all([getMatchById(params.id), getProfileSummary()]);
 
   if (!match) {
     notFound();
@@ -20,7 +22,7 @@ export default function GamePage({ params }: { params: { id: string } }) {
         <div className="grid gap-6 md:grid-cols-[1fr_0.9fr] md:items-center">
           <div>
             <p className="font-black uppercase text-brasil-green">Palpite Agora</p>
-            <p className="mt-2 text-lg font-black text-brasil-navy">Bem-vindo, Erick</p>
+            <p className="mt-2 text-lg font-black text-brasil-navy">Bem-vindo, {profile.name}</p>
             <h1 className="mt-1 text-4xl font-black text-brasil-navy">
               {match.homeTeam} x {match.awayTeam}
             </h1>

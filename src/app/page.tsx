@@ -1,5 +1,5 @@
 import { ArrowRight, CalendarDays, Clock, MapPin, Trophy, Users, Wallet } from "lucide-react";
-import { nextBrazilMatch, upcomingBrazilMatches } from "@/data/next-match";
+import { getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 import { MatchCountdown } from "@/components/match-countdown";
 import { AnimatedScoreboard } from "@/components/animated-scoreboard";
@@ -7,8 +7,27 @@ import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { RankingList } from "@/components/ranking-list";
 import Link from "next/link";
 
-export default function Home() {
-  const match = nextBrazilMatch;
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const [match, upcomingBrazilMatches, rankingPlayers] = await Promise.all([
+    getNextMatch(),
+    getUpcomingMatches(),
+    getRankingPlayers(10)
+  ]);
+
+  if (!match) {
+    return (
+      <PageShell>
+        <section className="rounded-lg bg-white p-6 shadow-field">
+          <SectionTitle eyebrow="Calendário" title="Nenhum jogo cadastrado" />
+          <p className="font-semibold text-slate-600">
+            Cadastre o próximo jogo na tabela jogos do Supabase para liberar o bolão.
+          </p>
+        </section>
+      </PageShell>
+    );
+  }
 
   return (
     <>
@@ -17,7 +36,7 @@ export default function Home() {
         <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center gap-3 px-4 py-6 text-center text-white md:min-h-[700px] md:gap-4 md:py-10">
           <div className="relative z-10 w-full">
             <p className="mb-2 text-sm font-black uppercase tracking-[0.14em] text-brasil-yellow md:hidden">
-              🇧🇷 Brasil x Marrocos 🇲🇦
+              {match.homeTeam} x {match.awayTeam}
             </p>
             <h1 className="match-title mx-auto max-w-4xl font-sans text-4xl font-black uppercase leading-[0.98] tracking-wide sm:text-5xl md:text-6xl">
               <span className="mr-2" aria-hidden>🇧🇷</span>
@@ -28,7 +47,7 @@ export default function Home() {
             </h1>
             <div className="mx-auto mt-4 flex max-w-3xl flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-bold text-white/90 sm:text-base">
               <p className="flex items-center gap-1.5">
-                <CalendarDays size={18} aria-hidden /> {match.dateLabel}, 19h
+                <CalendarDays size={18} aria-hidden /> {match.dateLabel}, {match.timeLabel}
               </p>
               <p className="flex items-center gap-1.5 text-white/85">
                 <MapPin size={18} aria-hidden /> {match.venue}
@@ -87,8 +106,8 @@ export default function Home() {
         <section>
           <SectionTitle eyebrow="Calendário" title="Próximos jogos do Brasil" />
           <div className="grid gap-4 md:grid-cols-2">
-            {upcomingBrazilMatches.map((nextMatch) => (
-              <article key={`${nextMatch.homeTeam}-${nextMatch.awayTeam}`} className="rounded-lg bg-white p-4 shadow-field md:p-5">
+            {upcomingBrazilMatches.slice(1).map((nextMatch) => (
+              <article key={nextMatch.id} className="rounded-lg bg-white p-4 shadow-field md:p-5">
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-brasil-green">{nextMatch.group}</p>
                 <h2 className="mt-1 text-2xl font-black text-brasil-navy">
                   {nextMatch.homeTeam} x {nextMatch.awayTeam}
@@ -105,6 +124,11 @@ export default function Home() {
                 </Link>
               </article>
             ))}
+            {upcomingBrazilMatches.length <= 1 ? (
+              <div className="rounded-lg bg-white p-4 font-semibold text-slate-600 shadow-field md:p-5">
+                Nenhum outro jogo futuro cadastrado no Supabase.
+              </div>
+            ) : null}
           </div>
         </section>
 
@@ -141,7 +165,7 @@ export default function Home() {
           </div>
           <div>
             <SectionTitle eyebrow="Top 10" title="Ranking da Torcida Brasileira" />
-            <RankingList limit={10} />
+            <RankingList players={rankingPlayers} limit={10} />
           </div>
         </section>
       </PageShell>

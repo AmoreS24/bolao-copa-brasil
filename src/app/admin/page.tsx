@@ -2,9 +2,12 @@ import { Banknote, CheckCircle2, Clock, Edit3, Trophy, Users } from "lucide-reac
 import type { LucideIcon } from "lucide-react";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { currency } from "@/lib/utils";
-import { matches, platformStats } from "@/data/mock";
+import { getAdminStats } from "@/data/supabase-live";
 
-export default function AdminPage() {
+export const dynamic = "force-dynamic";
+
+export default async function AdminPage() {
+  const stats = await getAdminStats();
   const adminActions: Array<[string, LucideIcon]> = [
     ["Monitorar Pix Asaas pendentes", Clock],
     ["Confirmar palpites pagos automaticamente", CheckCircle2],
@@ -19,22 +22,27 @@ export default function AdminPage() {
         <h1 className="text-3xl font-black text-brasil-navy md:text-4xl">Controle inicial do MVP</h1>
       </div>
       <section className="grid gap-4 md:grid-cols-4">
-        <StatCard icon={Users} label="Usuarios" value="128" />
-        <StatCard icon={Banknote} label="Arrecadado" value={currency(24800)} tone="yellow" />
-        <StatCard icon={Clock} label="Pix pendentes" value="18" tone="blue" />
-        <StatCard icon={Trophy} label="Ranking" value={currency(platformStats.rankingPool)} />
+        <StatCard icon={Users} label="Usuarios" value={`${stats.users}`} />
+        <StatCard icon={Banknote} label="Arrecadado" value={currency(stats.paidTotal)} tone="yellow" />
+        <StatCard icon={Clock} label="Pix pendentes" value={`${stats.paymentsPending}`} tone="blue" />
+        <StatCard icon={Trophy} label="Premio maximo" value={currency(stats.prize)} />
       </section>
       <section className="mt-10 grid gap-8 md:grid-cols-2">
         <div>
           <SectionTitle eyebrow="Rodadas" title="Jogos cadastrados" />
           <div className="grid gap-3">
-            {matches.map((match) => (
+            {stats.matches.map((match) => (
               <div key={match.id} className="rounded-lg bg-white p-4 shadow-field">
-                <p className="font-black text-brasil-navy">{match.brazil} x {match.opponent}</p>
-                <p className="text-sm font-semibold text-slate-600">{match.date}, {match.time}</p>
-                <p className="mt-2 font-black text-brasil-green">Entrada: {currency(match.entry)}</p>
+                <p className="font-black text-brasil-navy">{match.homeTeam} x {match.awayTeam}</p>
+                <p className="text-sm font-semibold text-slate-600">{match.dateLabel}, {match.timeLabel}</p>
+                <p className="mt-2 font-black text-brasil-green">Entrada: {currency(match.entryValue)}</p>
               </div>
             ))}
+            {stats.matches.length === 0 ? (
+              <div className="rounded-lg bg-white p-4 font-semibold text-slate-600 shadow-field">
+                Nenhum jogo cadastrado no Supabase.
+              </div>
+            ) : null}
           </div>
         </div>
         <div>
@@ -43,7 +51,7 @@ export default function AdminPage() {
             <label className="grid gap-2 text-sm font-black text-brasil-navy">
               Premio exibido no topo
               <input
-                defaultValue={currency(platformStats.exactPool)}
+                defaultValue={currency(stats.prize)}
                 className="min-h-12 rounded-lg border border-slate-200 px-4 text-xl font-black text-brasil-green outline-none focus:border-brasil-green"
               />
             </label>

@@ -1,10 +1,10 @@
 import { Medal } from "lucide-react";
-import { ranking } from "@/data/mock";
+import type { LiveRankingPlayer } from "@/data/supabase-live";
 
-export function RankingList({ limit = ranking.length }: { limit?: number }) {
+export function RankingList({ players, limit = players.length }: { players: LiveRankingPlayer[]; limit?: number }) {
   return (
     <div className="overflow-hidden rounded-lg bg-white shadow-field">
-      {ranking.slice(0, limit).map((player) => (
+      {players.slice(0, limit).map((player) => (
         <div key={player.position} className="flex items-center gap-3 border-b border-slate-100 p-4 last:border-0">
           <span
             className={`grid h-10 w-10 shrink-0 place-items-center rounded-full font-black ${
@@ -20,6 +20,9 @@ export function RankingList({ limit = ranking.length }: { limit?: number }) {
           <p className="text-right text-lg font-black text-brasil-blue">{player.points} pts</p>
         </div>
       ))}
+      {players.length === 0 ? (
+        <div className="p-4 font-semibold text-slate-600">Nenhum voto confirmado ainda.</div>
+      ) : null}
     </div>
   );
 }

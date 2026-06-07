@@ -1,10 +1,14 @@
 import { CheckCircle2, Medal, Trophy } from "lucide-react";
 import { RankingList } from "@/components/ranking-list";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
-import { platformStats, ranking } from "@/data/mock";
+import { getNextMatch, getPrizeValue, getRankingPlayers } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 
-export default function RankingPage() {
+export const dynamic = "force-dynamic";
+
+export default async function RankingPage() {
+  const [prize, ranking, match] = await Promise.all([getPrizeValue(), getRankingPlayers(10), getNextMatch()]);
+
   return (
     <PageShell>
       <div className="mb-6">
@@ -12,7 +16,7 @@ export default function RankingPage() {
         <h1 className="text-3xl font-black text-brasil-navy md:text-4xl">Disputa acumulada ate o ultimo jogo do Brasil</h1>
       </div>
       <section className="grid gap-4 md:grid-cols-4">
-        <StatCard icon={Trophy} label="Acumulado do ranking" value={currency(platformStats.rankingPool)} tone="yellow" />
+        <StatCard icon={Trophy} label="Premio maximo" value={currency(prize)} tone="yellow" />
         {ranking.slice(0, 3).map((player) => (
           <StatCard
             key={player.position}
@@ -25,7 +29,7 @@ export default function RankingPage() {
       </section>
       <section className="mt-10">
         <SectionTitle eyebrow="Top 10" title="Classificacao geral" />
-        <RankingList />
+        <RankingList players={ranking} />
       </section>
       <section className="mt-8 rounded-lg bg-white p-5 shadow-field">
         <SectionTitle eyebrow="Voto da torcida" title="Participacao liberada apos pagamento" />
@@ -33,9 +37,9 @@ export default function RankingPage() {
           <label className="grid gap-2 text-sm font-black text-brasil-navy">
             Seu voto neste jogo
             <select className="min-h-12 rounded-lg border border-slate-200 bg-white px-4 text-brasil-navy shadow-field outline-none focus:border-brasil-green">
-              <option>Brasil vence</option>
+              <option>{match?.homeTeam ?? "Mandante"} vence</option>
               <option>Empate</option>
-              <option>Marrocos vence</option>
+              <option>{match?.awayTeam ?? "Visitante"} vence</option>
             </select>
           </label>
           <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brasil-green px-5 font-black text-white shadow-field">

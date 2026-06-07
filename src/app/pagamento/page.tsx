@@ -1,16 +1,29 @@
 import Link from "next/link";
 import { CheckCircle2, Copy, QrCode, Radio } from "lucide-react";
 import { PageShell, SectionTitle } from "@/components/ui";
-import { platformStats } from "@/data/mock";
-import { nextBrazilMatch } from "@/data/next-match";
+import { getMatchById, getNextMatch } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 
-export default function PaymentPage({
+export const dynamic = "force-dynamic";
+
+export default async function PaymentPage({
   searchParams
 }: {
-  searchParams?: { palpites?: string };
+  searchParams?: { jogo?: string; palpites?: string };
 }) {
-  const match = nextBrazilMatch;
+  const match = searchParams?.jogo ? await getMatchById(searchParams.jogo) : await getNextMatch();
+
+  if (!match) {
+    return (
+      <PageShell>
+        <section className="mx-auto max-w-2xl rounded-lg bg-white p-5 shadow-field md:p-7">
+          <SectionTitle eyebrow="Pagamento Pix" title="Jogo não encontrado" />
+          <p className="font-semibold text-slate-600">Cadastre um jogo no Supabase antes de gerar o Pix.</p>
+        </section>
+      </PageShell>
+    );
+  }
+
   const guesses = searchParams?.palpites
     ? searchParams.palpites.split(",").filter(Boolean)
     : ["1x0"];
@@ -45,7 +58,7 @@ export default function PaymentPage({
                   <Copy size={18} aria-hidden />
                 </span>
               </div>
-              <p className="mt-3 text-sm font-bold text-slate-600">Chave de fallback: {platformStats.pixKey}</p>
+              <p className="mt-3 text-sm font-bold text-slate-600">Cobrança criada a partir dos dados do Supabase.</p>
             </div>
           </div>
 
@@ -64,7 +77,7 @@ export default function PaymentPage({
             <p className="font-black text-brasil-navy">Resumo</p>
             <div className="mt-2 grid gap-2 text-sm font-semibold text-slate-700">
               {guesses.map((guess, index) => (
-                <p key={`${guess}-${index}`}>Brasil {guess} Marrocos</p>
+                <p key={`${guess}-${index}`}>{match.homeTeam} {guess} {match.awayTeam}</p>
               ))}
               <p>Palpites: {currency(subtotal)}</p>
               <p>Taxa operacional única: {currency(match.operationalFee)}</p>
