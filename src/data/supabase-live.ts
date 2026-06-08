@@ -232,36 +232,6 @@ export async function getUpcomingMatches() {
   );
 }
 
-export async function getJogosDebugInfo() {
-  const supabase = getSupabaseServer();
-
-  if (!supabase) {
-    return {
-      error: "Supabase não configurado: verifique NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.",
-      count: 0,
-      firstRecord: null
-    };
-  }
-
-  const { data, error } = await supabase
-    .from("jogos")
-    .select(GAME_COLUMNS as "*");
-  const rows = (data ?? []) as DbRow[];
-
-  return {
-    error: error
-      ? {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint
-        }
-      : null,
-    count: rows.length,
-    firstRecord: rows[0] ?? null
-  };
-}
-
 export async function getNextMatch() {
   const matches = await getUpcomingMatches();
   return matches[0] ?? null;
