@@ -43,7 +43,7 @@ const ENTRY_VALUE = 10;
 const OPERATIONAL_FEE = 1.99;
 const DEFAULT_CAPACITY = 400;
 const DEFAULT_COMPETITION = "Copa do Mundo 2026";
-const GAME_COLUMNS = "id,time_da_casa,time_visitante,data_de_correspondência,apostas_encerram_em";
+const GAME_COLUMNS = "id,time_da_casa,time_visitante,data_de_correspondencia,apostas_encerram_em";
 
 function getSupabaseServer() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -135,7 +135,7 @@ function matchFromRow(row: DbRow, prize: number, confirmedGuesses: number, index
   const awayTeam = stringValue(row, ["time_visitante", "away_team", "visitante", "adversario"], "Adversário");
   const startsAt = stringValue(
     row,
-    ["data_de_correspondência", "data_de_correspondencia", "starts_at", "data", "data_jogo"],
+    ["data_de_correspondencia", "starts_at", "data", "data_jogo"],
     new Date().toISOString()
   );
   const bettingClosesAt = stringValue(row, ["apostas_encerram_em", "betting_closes_at", "encerramento"], startsAt);

@@ -12,7 +12,7 @@ export type DatabaseGame = {
   id: string;
   time_da_casa: string;
   time_visitante: string;
-  "data_de_correspondência": string;
+  data_de_correspondencia: string;
   apostas_encerram_em: string;
 };
 
