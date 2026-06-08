@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
+import { AuthGate } from "@/components/auth-gate";
 
 type Score = {
   brazil: number;
@@ -12,11 +11,13 @@ type Score = {
 export function AnimatedScoreboard({
   homeTeam,
   awayTeam,
-  scores
+  scores,
+  redirectTo
 }: {
   homeTeam: string;
   awayTeam: string;
   scores: Score[];
+  redirectTo?: string;
 }) {
   const [index, setIndex] = useState(0);
   const safeScores = useMemo(() => {
@@ -55,13 +56,7 @@ export function AnimatedScoreboard({
             <p key={`opponent-${index}`} className="mt-1 text-4xl font-black leading-none sm:text-5xl">{score.opponent}</p>
           </div>
         </div>
-        <Link
-          href="/cadastro"
-          className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-brasil-yellow px-4 text-sm font-black text-brasil-navy shadow-field transition hover:-translate-y-0.5 sm:w-auto"
-        >
-          Quero palpitar
-          <ArrowRight size={17} aria-hidden />
-        </Link>
+        <AuthGate redirectTo={redirectTo} variant="compact">Quero palpitar</AuthGate>
       </div>
     </div>
   );

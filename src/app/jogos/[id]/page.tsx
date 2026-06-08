@@ -1,14 +1,16 @@
 import { notFound } from "next/navigation";
 import { CalendarDays, CircleDollarSign, Clock, MapPin, Trophy, Users } from "lucide-react";
-import { getMatchById, getProfileSummary } from "@/data/supabase-live";
+import { getMatchById } from "@/data/supabase-live";
+import { getCurrentUser } from "@/lib/auth";
 import { currency } from "@/lib/utils";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { PredictionBuilder } from "@/components/prediction-builder";
+import { AuthGate } from "@/components/auth-gate";
 
 export const dynamic = "force-dynamic";
 
 export default async function GamePage({ params }: { params: { id: string } }) {
-  const [match, profile] = await Promise.all([getMatchById(params.id), getProfileSummary()]);
+  const [match, user] = await Promise.all([getMatchById(params.id), getCurrentUser()]);
 
   if (!match) {
     notFound();
@@ -22,7 +24,9 @@ export default async function GamePage({ params }: { params: { id: string } }) {
         <div className="grid gap-6 md:grid-cols-[1fr_0.9fr] md:items-center">
           <div>
             <p className="font-black uppercase text-brasil-green">Palpite Agora</p>
-            <p className="mt-2 text-lg font-black text-brasil-navy">Bem-vindo, {profile.name}</p>
+            <p className="mt-2 text-lg font-black text-brasil-navy">
+              {user ? `Bem-vindo, ${user.nome}` : "Entre para fazer seu palpite"}
+            </p>
             <h1 className="mt-1 text-4xl font-black text-brasil-navy">
               {match.homeTeam} x {match.awayTeam}
             </h1>
@@ -45,13 +49,22 @@ export default async function GamePage({ params }: { params: { id: string } }) {
       <section className="mt-8 grid gap-8 md:grid-cols-[1fr_0.85fr]">
         <div className="rounded-lg bg-white p-5 shadow-field md:p-7">
           <SectionTitle eyebrow="Placar exato" title="Escolha seu(s) placar(es)" />
-          <PredictionBuilder
-            matchId={match.id}
-            homeTeam={match.homeTeam}
-            awayTeam={match.awayTeam}
-            entryValue={match.entryValue}
-            operationalFee={match.operationalFee}
-          />
+          {user ? (
+            <PredictionBuilder
+              matchId={match.id}
+              homeTeam={match.homeTeam}
+              awayTeam={match.awayTeam}
+              entryValue={match.entryValue}
+              operationalFee={match.operationalFee}
+            />
+          ) : (
+            <div className="grid gap-4 rounded-lg bg-brasil-light p-5">
+              <p className="font-semibold text-slate-700">
+                Antes de escolher seu placar, faça login ou crie seu cadastro.
+              </p>
+              <AuthGate redirectTo={`/jogos/${match.id}`}>Entrar para palpitar</AuthGate>
+            </div>
+          )}
         </div>
 
         <aside className="rounded-lg bg-brasil-navy p-5 text-white shadow-field md:p-7">

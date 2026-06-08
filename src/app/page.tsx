@@ -1,11 +1,11 @@
-import { ArrowRight, CalendarDays, Clock, MapPin, Trophy, Users, Wallet } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Trophy, Users, Wallet } from "lucide-react";
 import { getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 import { MatchCountdown } from "@/components/match-countdown";
 import { AnimatedScoreboard } from "@/components/animated-scoreboard";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { RankingList } from "@/components/ranking-list";
-import Link from "next/link";
+import { AuthGate } from "@/components/auth-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -77,13 +77,7 @@ export default async function Home() {
               </div>
             </div>
             <div className="mt-5">
-              <Link
-                href="/cadastro"
-                className="hero-cta inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-full bg-brasil-yellow px-7 py-3 text-center text-lg font-black text-brasil-navy shadow-field transition hover:-translate-y-0.5 sm:w-auto"
-              >
-                🔥 ENTRAR NO BOLÃO
-                <ArrowRight size={22} aria-hidden />
-              </Link>
+              <AuthGate redirectTo={`/jogos/${match.id}`}>🔥 ENTRAR NO BOLÃO</AuthGate>
               <p className="mx-auto mt-3 max-w-sm text-center text-xs font-bold text-white/82">
                 Escolha quantos placares quiser e pague por Pix para confirmar
               </p>
@@ -101,6 +95,7 @@ export default async function Home() {
               homeTeam={match.homeTeam}
               awayTeam={match.awayTeam}
               scores={match.scoreExamples}
+              redirectTo={`/jogos/${match.id}`}
             />
           </div>
         </div>
@@ -120,12 +115,9 @@ export default async function Home() {
                   <p>{nextMatch.dateLabel}, {nextMatch.timeLabel}</p>
                   <p>{nextMatch.venue}</p>
                 </div>
-                <Link
-                  href="/cadastro"
-                  className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-brasil-green px-4 font-black text-white shadow-field md:w-auto"
-                >
-                  Apostar nesse jogo
-                </Link>
+                <div className="mt-4">
+                  <AuthGate redirectTo={`/jogos/${nextMatch.id}`} variant="compact">Apostar nesse jogo</AuthGate>
+                </div>
               </article>
             ))}
             {upcomingBrazilMatches.length <= 1 ? (

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Gauge, Home, LogIn, Medal, Shield, Trophy } from "lucide-react";
+import { Gauge, Home, Medal, Shield, Trophy } from "lucide-react";
 import Link from "next/link";
+import { AuthGate } from "@/components/auth-gate";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -40,13 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
                 </Link>
               ))}
             </nav>
-            <Link
-              href="/login"
-              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-brasil-blue px-4 py-2 text-sm font-black text-white shadow-field transition hover:-translate-y-0.5"
-            >
-              <LogIn size={17} aria-hidden />
-              Entrar
-            </Link>
+            <AuthGate variant="header">Entrar</AuthGate>
           </div>
         </header>
         {children}
