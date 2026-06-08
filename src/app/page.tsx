@@ -1,4 +1,5 @@
 import { ArrowRight, CalendarDays, Clock, MapPin, Trophy, Users, Wallet } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
 import { getJogosDebugInfo, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 import { MatchCountdown } from "@/components/match-countdown";
@@ -10,6 +11,34 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  console.log({
+    supabaseUrl
+  });
+
+  if (supabaseUrl && supabaseAnonKey) {
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false
+      }
+    });
+    const { data, error } = await supabase
+      .from("jogos")
+      .select("*");
+
+    console.log({
+      data,
+      error
+    });
+  } else {
+    console.log({
+      data: null,
+      error: "Variáveis NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY ausentes em runtime."
+    });
+  }
+
   const [debugInfo, match, upcomingBrazilMatches, rankingPlayers] = await Promise.all([
     getJogosDebugInfo(),
     getNextMatch(),
