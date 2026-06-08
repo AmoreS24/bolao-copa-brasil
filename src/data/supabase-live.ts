@@ -184,7 +184,7 @@ export async function getPrizeValue() {
 
   const row = (data ?? {}) as DbRow;
 
-  return numberValue(row, ["valor", "valor_atual", "premio", "premio_maximo", "total", "amount"], 0);
+  return numberValue(row, ["quantia", "valor", "valor_atual", "premio", "premio_maximo", "total", "amount"], 0);
 }
 
 export async function getConfirmedGuessesCount(matchId?: string) {
