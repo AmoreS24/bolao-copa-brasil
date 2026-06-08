@@ -5,7 +5,7 @@ import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 export type AuthUser = {
   id: string;
   nome: string;
-  email: string;
+  telefone: string;
 };
 
 export const SESSION_COOKIE = "bolao_session";
@@ -74,14 +74,14 @@ export function readSessionToken(token?: string): AuthUser | null {
   try {
     const session = JSON.parse(base64UrlDecode(payload)) as AuthUser & { exp: number };
 
-    if (!session.id || !session.nome || !session.email || session.exp < Math.floor(Date.now() / 1000)) {
+    if (!session.id || !session.nome || !session.telefone || session.exp < Math.floor(Date.now() / 1000)) {
       return null;
     }
 
     return {
       id: session.id,
       nome: session.nome,
-      email: session.email
+      telefone: session.telefone
     };
   } catch {
     return null;

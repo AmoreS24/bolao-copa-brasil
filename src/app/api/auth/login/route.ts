@@ -3,7 +3,7 @@ import { createSessionToken, SESSION_COOKIE, sessionCookieOptions, verifyPasswor
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 type LoginRequest = {
-  email?: string;
+  telefone?: string;
   senha?: string;
 };
 
@@ -15,27 +15,27 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json()) as LoginRequest;
-  const email = body.email?.trim().toLowerCase() ?? "";
+  const telefone = body.telefone?.trim() ?? "";
   const senha = body.senha ?? "";
 
-  if (!email || !senha) {
-    return NextResponse.json({ error: "Informe email e senha." }, { status: 400 });
+  if (!telefone || !senha) {
+    return NextResponse.json({ error: "Informe telefone e senha." }, { status: 400 });
   }
 
   const { data, error } = await supabase
     .from("perfis")
-    .select("id,nome,email,senha_hash")
-    .eq("email", email)
+    .select("id,nome,telefone,senha_hash")
+    .eq("telefone", telefone)
     .maybeSingle();
 
   if (error || !data || !verifyPassword(senha, data.senha_hash ?? "")) {
-    return NextResponse.json({ error: "Email ou senha inválidos." }, { status: 401 });
+    return NextResponse.json({ error: "Telefone ou senha inválidos." }, { status: 401 });
   }
 
   const user = {
     id: data.id,
     nome: data.nome,
-    email: data.email
+    telefone: data.telefone
   };
   const response = NextResponse.json({ user });
   response.cookies.set(SESSION_COOKIE, createSessionToken(user), sessionCookieOptions);

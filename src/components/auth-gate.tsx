@@ -7,7 +7,7 @@ import { ArrowRight, LogIn, LogOut, UserPlus, X } from "lucide-react";
 type AuthUser = {
   id: string;
   nome: string;
-  email: string;
+  telefone: string;
 };
 
 type AuthMode = "login" | "register";
@@ -159,11 +159,10 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
               {mode === "register" ? (
                 <>
                   <input name="nome" required placeholder="Nome" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
-                  <input name="telefone" required placeholder="Telefone" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
                   <input name="cpf" required placeholder="CPF" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
                 </>
               ) : null}
-              <input name="email" required type="email" placeholder="Email" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
+              <input name="telefone" required placeholder="Telefone / WhatsApp" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
               <input name="senha" required type="password" placeholder="Senha" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
 
               {message ? <p className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{message}</p> : null}

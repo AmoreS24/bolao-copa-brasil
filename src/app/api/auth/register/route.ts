@@ -4,7 +4,6 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 type RegisterRequest = {
   nome?: string;
-  email?: string;
   telefone?: string;
   cpf?: string;
   senha?: string;
@@ -23,12 +22,11 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as RegisterRequest;
   const nome = clean(body.nome);
-  const email = clean(body.email).toLowerCase();
   const telefone = clean(body.telefone);
   const cpf = clean(body.cpf);
   const senha = body.senha ?? "";
 
-  if (!nome || !email || !telefone || !cpf || !senha) {
+  if (!nome || !telefone || !cpf || !senha) {
     return NextResponse.json({ error: "Preencha todos os campos obrigatórios." }, { status: 400 });
   }
 
@@ -40,12 +38,11 @@ export async function POST(request: Request) {
     .from("perfis")
     .insert({
       nome,
-      email,
       telefone,
       cpf,
       senha_hash: hashPassword(senha)
     })
-    .select("id,nome,email")
+    .select("id,nome,telefone")
     .single();
 
   if (error || !data) {
