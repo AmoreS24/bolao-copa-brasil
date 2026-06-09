@@ -1,8 +1,9 @@
-import { Copy, QrCode, Radio } from "lucide-react";
+import { Radio } from "lucide-react";
 import { PageShell, SectionTitle } from "@/components/ui";
 import { getMatchById } from "@/data/supabase-live";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { currency } from "@/lib/utils";
+import { CopyPixButton } from "@/components/copy-pix-button";
 
 export const dynamic = "force-dynamic";
 
@@ -113,7 +114,7 @@ export default async function PaymentPage({
               {pixQrCode ? (
                 <img src={qrCodeSource(pixQrCode)} alt="QR Code Pix" className="h-44 w-44 object-contain" />
               ) : (
-                <QrCode size={128} strokeWidth={1.8} aria-hidden />
+                <p className="px-4 text-center text-sm font-bold text-slate-600">QR Code indisponível.</p>
               )}
             </div>
             <div className="rounded-lg bg-brasil-light p-4">
@@ -122,9 +123,7 @@ export default async function PaymentPage({
                 <p className="min-w-0 flex-1 break-words text-sm font-black text-brasil-navy">
                   {pixCopyPaste || "Pix copia e cola indisponível."}
                 </p>
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brasil-yellow text-brasil-blue">
-                  <Copy size={18} aria-hidden />
-                </span>
+                <CopyPixButton payload={pixCopyPaste} />
               </div>
               <p className="mt-3 text-sm font-bold text-slate-600">A cobrança expira em 60 minutos.</p>
             </div>

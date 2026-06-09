@@ -33,6 +33,7 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
   const [user, setUser] = useState<AuthUser | null>(null);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("login");
+  const [checkingSession, setCheckingSession] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -40,7 +41,8 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
     fetch("/api/auth/me", { cache: "no-store" })
       .then(parseResponse)
       .then((payload) => setUser(payload.user))
-      .catch(() => setUser(null));
+      .catch(() => setUser(null))
+      .finally(() => setCheckingSession(false));
   }, []);
 
   function openAuth(nextMode: AuthMode) {
@@ -49,7 +51,7 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
     setOpen(true);
   }
 
-  function handlePrimaryClick() {
+  async function handlePrimaryClick() {
     if (user && redirectTo) {
       router.push(redirectTo);
       return;
@@ -57,6 +59,26 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
 
     if (user) {
       return;
+    }
+
+    if (checkingSession) {
+      try {
+        const payload = await parseResponse(await fetch("/api/auth/me", { cache: "no-store" }));
+        setUser(payload.user);
+
+        if (payload.user && redirectTo) {
+          router.push(redirectTo);
+          return;
+        }
+
+        if (payload.user) {
+          return;
+        }
+      } catch {
+        setUser(null);
+      } finally {
+        setCheckingSession(false);
+      }
     }
 
     openAuth("login");

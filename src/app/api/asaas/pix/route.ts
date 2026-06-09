@@ -15,6 +15,11 @@ type AsaasResponse = {
   errors?: Array<{ description?: string }>;
 };
 
+type AsaasFetchResult = {
+  status: number;
+  payload: AsaasResponse;
+};
+
 const ENTRY_VALUE = 10;
 const OPERATIONAL_FEE = 1.99;
 
@@ -38,7 +43,7 @@ function tomorrowDate() {
   return date.toISOString().slice(0, 10);
 }
 
-async function asaasFetch(path: string, init: RequestInit) {
+async function asaasFetch(path: string, init: RequestInit): Promise<AsaasFetchResult> {
   const apiKey = process.env.ASAAS_API_KEY;
 
   if (!apiKey) {
@@ -59,7 +64,10 @@ async function asaasFetch(path: string, init: RequestInit) {
     throw new Error(payload.errors?.[0]?.description || "Erro ao comunicar com o Asaas.");
   }
 
-  return payload;
+  return {
+    status: response.status,
+    payload
+  };
 }
 
 export async function POST(request: Request) {
@@ -106,7 +114,7 @@ export async function POST(request: Request) {
     const total = asCurrencyValue(subtotal + OPERATIONAL_FEE);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-    const customer = await asaasFetch("/customers", {
+    const customerResult = await asaasFetch("/customers", {
       method: "POST",
       body: JSON.stringify({
         name: profile.nome,
@@ -114,12 +122,13 @@ export async function POST(request: Request) {
         mobilePhone: cleanNumber(profile.telefone ?? "")
       })
     });
+    const customer = customerResult.payload;
 
     if (!customer.id) {
       return NextResponse.json({ error: "Não foi possível criar o cliente no Asaas." }, { status: 502 });
     }
 
-    const payment = await asaasFetch("/payments", {
+    const paymentResult = await asaasFetch("/payments", {
       method: "POST",
       body: JSON.stringify({
         customer: customer.id,
@@ -130,13 +139,29 @@ export async function POST(request: Request) {
         externalReference: `${user.id}:${match.id}:${Date.now()}`
       })
     });
+    const payment = paymentResult.payload;
+
+    console.log("[Asaas Pix] cobrança criada", {
+      status: paymentResult.status,
+      asaasPaymentId: payment.id ?? null
+    });
 
     if (!payment.id) {
       return NextResponse.json({ error: "Não foi possível criar a cobrança no Asaas." }, { status: 502 });
     }
 
-    const pixQrCode = await asaasFetch(`/payments/${payment.id}/pixQrCode`, {
+    const pixQrCodeResult = await asaasFetch(`/payments/${payment.id}/pixQrCode`, {
       method: "GET"
+    });
+    const pixQrCode = pixQrCodeResult.payload;
+
+    console.log("[Asaas Pix] pixQrCode recebido", {
+      status: pixQrCodeResult.status,
+      asaasPaymentId: payment.id,
+      keys: Object.keys(pixQrCode),
+      hasEncodedImage: Boolean(pixQrCode.encodedImage),
+      hasPayload: Boolean(pixQrCode.payload),
+      payloadPreview: pixQrCode.payload ? `${pixQrCode.payload.slice(0, 24)}...` : null
     });
 
     const { data: savedPayment, error: paymentError } = await supabase
