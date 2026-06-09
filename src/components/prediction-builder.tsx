@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Trash2, Wallet } from "lucide-react";
 import { currency } from "@/lib/utils";
 
@@ -26,21 +26,15 @@ export function PredictionBuilder({
   entryValue,
   operationalFee
 }: PredictionBuilderProps) {
+  const router = useRouter();
   const [homeScore, setHomeScore] = useState("");
   const [awayScore, setAwayScore] = useState("");
   const [guesses, setGuesses] = useState<Guess[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const subtotal = guesses.length * entryValue;
   const total = guesses.length > 0 ? subtotal + operationalFee : 0;
-
-  const paymentHref = useMemo(() => {
-    const params = new URLSearchParams({
-      jogo: matchId,
-      palpites: guesses.map((guess) => `${guess.home}x${guess.away}`).join(",")
-    });
-
-    return `/pagamento?${params.toString()}`;
-  }, [guesses, matchId]);
 
   function addGuess() {
     if (homeScore === "" || awayScore === "") {
@@ -61,6 +55,39 @@ export function PredictionBuilder({
 
   function removeGuess(id: number) {
     setGuesses((currentGuesses) => currentGuesses.filter((guess) => guess.id !== id));
+  }
+
+  async function generatePix() {
+    if (guesses.length === 0) {
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/asaas/pix", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          matchId,
+          guesses
+        })
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Não foi possível gerar o Pix.");
+      }
+
+      router.push(`/pagamento?pagamento=${payload.payment.id}`);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Não foi possível gerar o Pix.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -149,18 +176,21 @@ export function PredictionBuilder({
         </div>
       </div>
 
-      <Link
-        href={paymentHref}
-        aria-disabled={guesses.length === 0}
+      {error ? <p className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
+
+      <button
+        type="button"
+        onClick={generatePix}
+        disabled={guesses.length === 0 || loading}
         className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 text-center font-black shadow-field transition ${
-          guesses.length === 0
-            ? "pointer-events-none bg-slate-200 text-slate-500"
+          guesses.length === 0 || loading
+            ? "bg-slate-200 text-slate-500"
             : "bg-brasil-green text-white hover:-translate-y-0.5"
         }`}
       >
         <Wallet size={19} aria-hidden />
-        Gerar Pix
-      </Link>
+        {loading ? "Gerando Pix..." : "Gerar Pix"}
+      </button>
     </div>
   );
 }
