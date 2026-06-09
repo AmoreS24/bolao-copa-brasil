@@ -13,6 +13,10 @@ function clean(value?: string) {
   return value?.trim() ?? "";
 }
 
+function digitsOnly(value?: string) {
+  return clean(value).replace(/\D/g, "");
+}
+
 export async function POST(request: Request) {
   const supabase = getSupabaseServerClient();
 
@@ -22,8 +26,8 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as RegisterRequest;
   const nome = clean(body.nome);
-  const telefone = clean(body.telefone);
-  const cpf = clean(body.cpf);
+  const telefone = digitsOnly(body.telefone);
+  const cpf = digitsOnly(body.cpf);
   const senha = body.senha ?? "";
 
   if (!nome || !telefone || !cpf || !senha) {
@@ -32,6 +36,20 @@ export async function POST(request: Request) {
 
   if (senha.length < 6) {
     return NextResponse.json({ error: "A senha deve ter pelo menos 6 caracteres." }, { status: 400 });
+  }
+
+  const { data: existingProfile, error: existingProfileError } = await supabase
+    .from("perfis")
+    .select("id")
+    .or(`cpf.eq.${cpf},telefone.eq.${telefone}`)
+    .maybeSingle();
+
+  if (existingProfileError) {
+    return NextResponse.json({ error: "Não foi possível validar o cadastro." }, { status: 400 });
+  }
+
+  if (existingProfile) {
+    return NextResponse.json({ error: "CPF ou WhatsApp já cadastrado." }, { status: 409 });
   }
 
   const { data, error } = await supabase
@@ -46,6 +64,10 @@ export async function POST(request: Request) {
     .single();
 
   if (error || !data) {
+    if (error?.code === "23505") {
+      return NextResponse.json({ error: "CPF ou WhatsApp já cadastrado." }, { status: 409 });
+    }
+
     return NextResponse.json({ error: error?.message ?? "Não foi possível criar o cadastro." }, { status: 400 });
   }
 
