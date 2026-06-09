@@ -26,13 +26,9 @@ export function PredictionBuilder({
   entryValue,
   operationalFee
 }: PredictionBuilderProps) {
-  const [homeScore, setHomeScore] = useState(1);
-  const [awayScore, setAwayScore] = useState(0);
-  const [guesses, setGuesses] = useState<Guess[]>([
-    { id: 1, home: 1, away: 0 },
-    { id: 2, home: 2, away: 1 },
-    { id: 3, home: 3, away: 0 }
-  ]);
+  const [homeScore, setHomeScore] = useState("");
+  const [awayScore, setAwayScore] = useState("");
+  const [guesses, setGuesses] = useState<Guess[]>([]);
 
   const subtotal = guesses.length * entryValue;
   const total = guesses.length > 0 ? subtotal + operationalFee : 0;
@@ -47,14 +43,20 @@ export function PredictionBuilder({
   }, [guesses, matchId]);
 
   function addGuess() {
+    if (homeScore === "" || awayScore === "") {
+      return;
+    }
+
     setGuesses((currentGuesses) => [
       ...currentGuesses,
       {
         id: Date.now(),
-        home: Math.max(0, homeScore),
-        away: Math.max(0, awayScore)
+        home: Math.max(0, Number(homeScore)),
+        away: Math.max(0, Number(awayScore))
       }
     ]);
+    setHomeScore("");
+    setAwayScore("");
   }
 
   function removeGuess(id: number) {
@@ -70,7 +72,8 @@ export function PredictionBuilder({
             type="number"
             min={0}
             value={homeScore}
-            onChange={(event) => setHomeScore(Number(event.target.value))}
+            onChange={(event) => setHomeScore(event.target.value)}
+            placeholder=" "
             className="min-h-12 w-full rounded-lg border border-slate-200 bg-white px-4 text-xl font-black text-brasil-navy shadow-field outline-none focus:border-brasil-green"
             aria-label={`Gols do ${homeTeam}`}
           />
@@ -82,7 +85,8 @@ export function PredictionBuilder({
             type="number"
             min={0}
             value={awayScore}
-            onChange={(event) => setAwayScore(Number(event.target.value))}
+            onChange={(event) => setAwayScore(event.target.value)}
+            placeholder=" "
             className="min-h-12 w-full rounded-lg border border-slate-200 bg-white px-4 text-xl font-black text-brasil-navy shadow-field outline-none focus:border-brasil-green"
             aria-label={`Gols do ${awayTeam}`}
           />
@@ -104,6 +108,11 @@ export function PredictionBuilder({
           <p className="text-sm font-black text-brasil-green">{guesses.length} selecionados</p>
         </div>
         <div className="mt-3 grid gap-2">
+          {guesses.length === 0 ? (
+            <p className="rounded-lg bg-white px-3 py-4 text-sm font-bold text-slate-500 shadow-field">
+              Nenhum placar adicionado ainda.
+            </p>
+          ) : null}
           {guesses.map((guess) => (
             <div
               key={guess.id}

@@ -82,7 +82,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
               <p className="mt-1 flex items-center gap-2 font-black">
                 <Clock size={18} aria-hidden /> Apostas até {match.bettingClosesLabel}
               </p>
-              <p className="mt-1 text-sm font-semibold text-white/80">60 minutos antes da partida.</p>
+              <p className="mt-1 text-sm font-semibold text-white/80">15 minutos antes da partida.</p>
             </div>
             <div className="rounded-lg bg-white/10 p-4">
               <p className="text-sm font-black uppercase text-brasil-yellow">Ranking da torcida</p>

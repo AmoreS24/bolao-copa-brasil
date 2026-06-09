@@ -63,21 +63,21 @@ export function MatchCountdown({ startsAt }: { startsAt: string }) {
       ];
 
   return (
-    <div className="rounded-2xl border border-white/20 bg-black/25 p-5 shadow-2xl backdrop-blur-md">
-      <p className="mb-4 text-center text-xs font-black uppercase tracking-[0.35em] text-brasil-yellow">
+    <div className="rounded-lg border border-white/20 bg-black/25 p-3 shadow-2xl backdrop-blur-md md:p-4">
+      <p className="mb-3 text-center text-xs font-black uppercase tracking-[0.25em] text-brasil-yellow">
         Contagem regressiva
       </p>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-4 gap-2">
         {values.map((item) => (
           <div
             key={item.label}
-            className="rounded-xl bg-white px-4 py-3 text-center shadow-lg"
+            className="rounded-lg bg-white px-2 py-2 text-center shadow-lg md:px-3"
           >
-            <strong className="block text-3xl font-black leading-none text-brasil-blue drop-shadow-md">
+            <strong className="block text-2xl font-black leading-none text-brasil-blue drop-shadow-md md:text-3xl">
               {item.value}
             </strong>
-            <span className="mt-2 block text-[10px] font-black uppercase tracking-wide text-slate-500">
+            <span className="mt-1 block text-[9px] font-black uppercase tracking-wide text-slate-500 md:text-[10px]">
               {item.label}
             </span>
           </div>

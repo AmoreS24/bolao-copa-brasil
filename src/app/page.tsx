@@ -33,19 +33,19 @@ export default async function Home() {
     <>
       <section className="stadium-hero">
         <div className="stadium-lights" aria-hidden />
-        <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center gap-3 px-4 py-6 text-center text-white md:min-h-[700px] md:gap-4 md:py-10">
+        <div className="mx-auto flex min-h-[calc(100vh-76px)] max-w-5xl flex-col items-center justify-center gap-2 px-4 py-4 text-center text-white md:min-h-[640px] md:gap-3 md:py-6">
           <div className="relative z-10 w-full">
-            <p className="mb-2 text-sm font-black uppercase tracking-[0.14em] text-brasil-yellow md:hidden">
+            <p className="mb-1 text-sm font-black uppercase tracking-[0.14em] text-brasil-yellow md:hidden">
               {match.homeTeam} x {match.awayTeam}
             </p>
-            <h1 className="match-title mx-auto max-w-4xl font-sans text-4xl font-black uppercase leading-[0.98] tracking-wide sm:text-5xl md:text-6xl">
+            <h1 className="match-title mx-auto max-w-4xl font-sans text-4xl font-black uppercase leading-[0.98] tracking-wide sm:text-5xl md:text-[3.4rem]">
               <span className="mr-2" aria-hidden>🇧🇷</span>
               <span className="text-brasil-yellow">{match.homeTeam}</span>
               <span className="mx-2 align-middle text-2xl text-white md:mx-4 md:text-4xl">x</span>
               <span className="text-white">{match.awayTeam}</span>
               <span className="ml-2" aria-hidden>🇲🇦</span>
             </h1>
-            <div className="mx-auto mt-4 flex max-w-3xl flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-bold text-white/90 sm:text-base">
+            <div className="mx-auto mt-3 flex max-w-3xl flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-sm font-bold text-white/90 sm:text-base">
               <p className="flex items-center gap-1.5">
                 <CalendarDays size={18} aria-hidden /> {match.dateLabel}, {match.timeLabel}
               </p>
@@ -62,34 +62,31 @@ export default async function Home() {
                 <Clock size={18} className="text-brasil-yellow" aria-hidden /> Apostas até {match.bettingClosesLabel}
               </p>
             </div>
-            <div className="mx-auto mt-5 grid w-full max-w-2xl gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur md:p-4 sm:col-span-2">
+            <div className="mx-auto mt-4 grid w-full max-w-2xl gap-2 sm:grid-cols-3">
+              <div className="rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur">
                 <p className="text-xs font-black uppercase text-brasil-yellow">Data do jogo</p>
-                <p className="mt-1 text-2xl font-black">{match.dateLabel}, {match.timeLabel}</p>
+                <p className="mt-1 text-xl font-black">{match.dateLabel}</p>
               </div>
-              <div className="rounded-lg border border-brasil-yellow/45 bg-black/32 p-3 text-white shadow-field backdrop-blur md:p-4">
+              <div className="rounded-lg border border-brasil-yellow/45 bg-black/32 p-3 text-white shadow-field backdrop-blur">
                 <p className="text-xs font-black uppercase text-brasil-yellow">🏆 Prêmio estimado</p>
-                <p className="mt-1 text-3xl font-black">{currency(match.exactPool)}</p>
+                <p className="mt-1 text-xl font-black">{currency(match.exactPool)}</p>
               </div>
-              <div className="rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur md:p-4">
+              <div className="rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur">
                 <p className="text-xs font-black uppercase text-brasil-yellow">💰 Cada palpite</p>
-                <p className="mt-1 text-3xl font-black">{currency(match.entryValue)}</p>
+                <p className="mt-1 text-xl font-black">{currency(match.entryValue)}</p>
               </div>
             </div>
-            <div className="mt-5">
+            <div className="mt-4">
               <AuthGate redirectTo={`/jogos/${match.id}`}>🔥 ENTRAR NO BOLÃO</AuthGate>
-              <p className="mx-auto mt-3 max-w-sm text-center text-xs font-bold text-white/82">
+              <p className="mx-auto mt-2 max-w-sm text-center text-xs font-bold text-white/82">
                 Escolha quantos placares quiser e pague por Pix para confirmar
               </p>
             </div>
           </div>
 
-          <div className="relative z-10 grid w-full max-w-2xl gap-3">
-            <div className="rounded-lg border border-white/20 bg-black/28 p-3 shadow-field backdrop-blur md:p-4">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-brasil-yellow">Contagem regressiva</p>
-              <div className="mt-3">
-                <MatchCountdown startsAt={match.bettingClosesAt} />
-              </div>
+          <div className="relative z-10 grid w-full max-w-2xl gap-2">
+            <div className="rounded-lg border border-white/20 bg-black/28 p-2 shadow-field backdrop-blur md:p-3">
+              <MatchCountdown startsAt={match.bettingClosesAt} />
             </div>
             <AnimatedScoreboard
               homeTeam={match.homeTeam}

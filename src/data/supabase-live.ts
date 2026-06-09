@@ -121,6 +121,16 @@ function shortTimeLabel(value: string) {
   return timeLabel(value).replace(":00", "").replace(" (Brasília)", "h");
 }
 
+function minutesBefore(value: string, minutes: number) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Date(date.getTime() - minutes * 60 * 1000).toISOString();
+}
+
 function slugFromTeams(homeTeam: string, awayTeam: string) {
   return `${homeTeam}-${awayTeam}`
     .normalize("NFD")
@@ -138,7 +148,7 @@ function matchFromRow(row: DbRow, prize: number, confirmedGuesses: number, index
     ["data_de_correspondencia", "starts_at", "data", "data_jogo"],
     new Date().toISOString()
   );
-  const bettingClosesAt = stringValue(row, ["apostas_encerram_em", "betting_closes_at", "encerramento"], startsAt);
+  const bettingClosesAt = minutesBefore(startsAt, 15);
   const capacity = numberValue(row, ["limite_apostas", "capacidade", "vagas"], DEFAULT_CAPACITY);
   const rowPrize = numberValue(row, ["premio", "premio_maximo", "premio_estimado", "acumulado"], prize);
 
