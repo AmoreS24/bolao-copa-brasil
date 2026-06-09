@@ -12,6 +12,21 @@ type AsaasWebhook = {
 
 const PAID_EVENTS = new Set(["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"]);
 
+function getWebhookToken(request: Request) {
+  return request.headers.get("asaas-access-token") ?? request.headers.get("asaas_access_token") ?? "";
+}
+
+function isValidWebhookToken(request: Request) {
+  const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
+
+  if (!expectedToken) {
+    console.error("[Asaas Webhook] ASAAS_WEBHOOK_TOKEN não configurado.");
+    return false;
+  }
+
+  return getWebhookToken(request) === expectedToken;
+}
+
 function getAsaasPaymentId(body: AsaasWebhook) {
   if (typeof body.payment === "string") {
     return body.payment;
@@ -22,6 +37,11 @@ function getAsaasPaymentId(body: AsaasWebhook) {
 
 export async function POST(request: Request) {
   let body: AsaasWebhook;
+
+  if (!isValidWebhookToken(request)) {
+    console.error("[Asaas Webhook] token inválido ou ausente.");
+    return NextResponse.json({ received: false, error: "Webhook não autorizado." }, { status: 401 });
+  }
 
   try {
     body = (await request.json()) as AsaasWebhook;
