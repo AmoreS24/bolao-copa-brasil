@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Gauge, Home, Medal, Shield, Trophy } from "lucide-react";
 import Link from "next/link";
 import { AuthGate } from "@/components/auth-gate";
+import { ReferralCapture } from "@/components/referral-capture";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="pt-BR">
       <body className="min-h-screen pb-20 font-sans antialiased md:pb-0">
+        <ReferralCapture />
         <header className="sticky top-0 z-30 border-b border-brasil-yellow/50 bg-white/92 shadow-[0_10px_28px_rgba(7,27,77,0.08)] backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
             <Link href="/" className="flex min-w-0 items-center gap-3 font-black text-brasil-blue">

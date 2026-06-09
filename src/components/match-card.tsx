@@ -5,6 +5,7 @@ import type { LiveMatch } from "@/data/supabase-live";
 
 export function MatchCard({ match }: { match: LiveMatch }) {
   const isActive = Boolean(match.id);
+  const publicEntryValue = match.entryValue + match.operationalFee;
 
   return (
     <article className="rounded-lg bg-white p-4 shadow-field">
@@ -30,7 +31,7 @@ export function MatchCard({ match }: { match: LiveMatch }) {
       <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-brasil-light p-3">
         <div>
           <p className="text-xs font-bold text-slate-500">Participacao</p>
-          <p className="font-black text-brasil-navy">{currency(match.entryValue)}</p>
+          <p className="font-black text-brasil-navy">{currency(publicEntryValue)}</p>
         </div>
         <div>
           <p className="text-xs font-bold text-slate-500">Premio exato</p>

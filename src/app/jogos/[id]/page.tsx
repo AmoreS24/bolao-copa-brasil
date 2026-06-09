@@ -17,6 +17,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
   }
 
   const estimatedPrize = match.exactPool;
+  const publicEntryValue = match.entryValue + match.operationalFee;
 
   return (
     <PageShell>
@@ -40,7 +41,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <StatCard icon={CircleDollarSign} label="Cada palpite" value={currency(match.entryValue)} />
+            <StatCard icon={CircleDollarSign} label="Cada palpite" value={currency(publicEntryValue)} />
             <StatCard icon={Trophy} label="Prêmio estimado" value={currency(estimatedPrize)} tone="yellow" />
           </div>
         </div>

@@ -6,6 +6,7 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 type PixRequest = {
   matchId?: string;
   guesses?: Array<{ home: number; away: number }>;
+  origem_ref?: string;
 };
 
 type AsaasResponse = {
@@ -23,8 +24,18 @@ type AsaasFetchResult = {
   payload: AsaasResponse;
 };
 
+type ProfileRow = Record<string, unknown> & {
+  id?: string;
+  nome?: string;
+  telefone?: string;
+  cpf?: string;
+  origem_ref?: string;
+};
+
 const ENTRY_VALUE = 10;
 const OPERATIONAL_FEE = 1.99;
+const PIX_EXPIRATION_MINUTES = 5;
+const ALLOWED_REFS = new Set(["erick", "luana", "reis", "wallison", "donarosa", "alta-news"]);
 
 class AsaasApiError extends Error {
   status: number;
@@ -50,6 +61,22 @@ function asCurrencyValue(value: number) {
 
 function cleanNumber(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function cookieValue(request: Request, name: string) {
+  const cookies = request.headers.get("cookie") ?? "";
+  const match = cookies.split(";").map((cookie) => cookie.trim()).find((cookie) => cookie.startsWith(`${name}=`));
+
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : "";
+}
+
+function normalizeReferral(value?: string) {
+  const ref = value?.trim().toLowerCase() ?? "";
+  return ALLOWED_REFS.has(ref) ? ref : "";
+}
+
+function isMissingOriginColumnError(error: { code?: string; message?: string } | null) {
+  return error?.code === "PGRST204" || Boolean(error?.message?.includes("origem_ref"));
 }
 
 function readTextField(payload: AsaasResponse, keys: string[]) {
@@ -133,6 +160,7 @@ export async function POST(request: Request) {
       getCurrentUser()
     ]);
     const guesses = body.guesses ?? [];
+    const origemRef = normalizeReferral(body.origem_ref) || normalizeReferral(cookieValue(request, "origem_ref"));
 
     if (!user) {
       return NextResponse.json({ error: "Faça login para gerar o Pix." }, { status: 401 });
@@ -157,11 +185,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Supabase não configurado." }, { status: 500 });
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const profileResult = await supabase
       .from("perfis")
-      .select("id,nome,telefone,cpf")
+      .select("id,nome,telefone,cpf,origem_ref")
       .eq("id", user.id)
       .maybeSingle();
+    let profile = profileResult.data as ProfileRow | null;
+    let profileError = profileResult.error;
+
+    if (profileError && isMissingOriginColumnError(profileError)) {
+      const retry = await supabase
+        .from("perfis")
+        .select("id,nome,telefone,cpf")
+        .eq("id", user.id)
+        .maybeSingle();
+      profile = retry.data as ProfileRow | null;
+      profileError = retry.error;
+    }
 
     if (profileError || !profile) {
       return NextResponse.json({ error: "Perfil não encontrado." }, { status: 404 });
@@ -169,7 +209,8 @@ export async function POST(request: Request) {
 
     const subtotal = asCurrencyValue(guesses.length * ENTRY_VALUE);
     const total = asCurrencyValue(subtotal + OPERATIONAL_FEE);
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + PIX_EXPIRATION_MINUTES * 60 * 1000);
+    const paymentOriginRef = origemRef || normalizeReferral(profile.origem_ref as string | undefined);
 
     console.log("STEP 1 OK");
 
@@ -299,21 +340,38 @@ export async function POST(request: Request) {
 
     console.log("STEP 7 OK");
 
-    const { data: savedPayment, error: paymentError } = await supabase
+    const paymentInsertPayload: Record<string, unknown> = {
+      perfil_id: user.id,
+      asaas_payment_id: payment.id,
+      valor_total: total,
+      valor_palpites: subtotal,
+      taxa_operacional: OPERATIONAL_FEE,
+      status: "pending",
+      pix_qr_code: normalizedPixQrCode.encodedImage,
+      pix_copia_cola: normalizedPixQrCode.copyPaste,
+      expira_em: expiresAt.toISOString()
+    };
+
+    if (paymentOriginRef) {
+      paymentInsertPayload.origem_ref = paymentOriginRef;
+    }
+
+    let { data: savedPayment, error: paymentError } = await supabase
       .from("pagamentos")
-      .insert({
-        perfil_id: user.id,
-        asaas_payment_id: payment.id,
-        valor_total: total,
-        valor_palpites: subtotal,
-        taxa_operacional: OPERATIONAL_FEE,
-        status: "pending",
-        pix_qr_code: normalizedPixQrCode.encodedImage,
-        pix_copia_cola: normalizedPixQrCode.copyPaste,
-        expira_em: expiresAt.toISOString()
-      })
+      .insert(paymentInsertPayload)
       .select("id,pix_qr_code")
       .single();
+
+    if (paymentError && paymentOriginRef && isMissingOriginColumnError(paymentError)) {
+      delete paymentInsertPayload.origem_ref;
+      const retry = await supabase
+        .from("pagamentos")
+        .insert(paymentInsertPayload)
+        .select("id,pix_qr_code")
+        .single();
+      savedPayment = retry.data;
+      paymentError = retry.error;
+    }
 
     if (paymentError || !savedPayment) {
       const error = paymentError ?? new Error("Pagamento não retornado após insert.");

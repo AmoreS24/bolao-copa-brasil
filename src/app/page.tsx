@@ -29,6 +29,8 @@ export default async function Home() {
     );
   }
 
+  const publicEntryValue = match.entryValue + match.operationalFee;
+
   return (
     <>
       <section className="stadium-hero">
@@ -73,7 +75,7 @@ export default async function Home() {
               </div>
               <div className="rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur">
                 <p className="text-xs font-black uppercase text-brasil-yellow">💰 Cada palpite</p>
-                <p className="mt-1 text-xl font-black">{currency(match.entryValue)}</p>
+                <p className="mt-1 text-xl font-black">{currency(publicEntryValue)}</p>
               </div>
             </div>
             <div className="mt-4">
@@ -127,7 +129,7 @@ export default async function Home() {
 
         <section className="mt-6 grid gap-4 md:grid-cols-3">
           <StatCard icon={Trophy} label="Prêmio estimado da rodada" value={currency(match.exactPool)} tone="yellow" />
-          <StatCard icon={Wallet} label="Cada palpite" value={currency(match.entryValue)} />
+          <StatCard icon={Wallet} label="Cada palpite" value={currency(publicEntryValue)} />
           <StatCard icon={Users} label="Palpites confirmados" value={`${match.confirmedGuesses}`} tone="blue" />
         </section>
 

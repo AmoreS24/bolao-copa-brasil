@@ -7,7 +7,10 @@ type RegisterRequest = {
   telefone?: string;
   cpf?: string;
   senha?: string;
+  origem_ref?: string;
 };
+
+const ALLOWED_REFS = new Set(["erick", "luana", "reis", "wallison", "donarosa", "alta-news"]);
 
 function clean(value?: string) {
   return value?.trim() ?? "";
@@ -15,6 +18,22 @@ function clean(value?: string) {
 
 function digitsOnly(value?: string) {
   return clean(value).replace(/\D/g, "");
+}
+
+function cookieValue(request: Request, name: string) {
+  const cookies = request.headers.get("cookie") ?? "";
+  const match = cookies.split(";").map((cookie) => cookie.trim()).find((cookie) => cookie.startsWith(`${name}=`));
+
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : "";
+}
+
+function normalizeReferral(value?: string) {
+  const ref = clean(value).toLowerCase();
+  return ALLOWED_REFS.has(ref) ? ref : "";
+}
+
+function isMissingOriginColumnError(error: { code?: string; message?: string } | null) {
+  return error?.code === "PGRST204" || Boolean(error?.message?.includes("origem_ref"));
 }
 
 export async function POST(request: Request) {
@@ -29,6 +48,7 @@ export async function POST(request: Request) {
   const telefone = digitsOnly(body.telefone);
   const cpf = digitsOnly(body.cpf);
   const senha = body.senha ?? "";
+  const origemRef = normalizeReferral(body.origem_ref) || normalizeReferral(cookieValue(request, "origem_ref"));
 
   if (!nome || !telefone || !cpf || !senha) {
     return NextResponse.json({ error: "Preencha todos os campos obrigatórios." }, { status: 400 });
@@ -52,16 +72,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "CPF ou WhatsApp já cadastrado." }, { status: 409 });
   }
 
-  const { data, error } = await supabase
+  const profilePayload: Record<string, string> = {
+    nome,
+    telefone,
+    cpf,
+    senha_hash: hashPassword(senha)
+  };
+
+  if (origemRef) {
+    profilePayload.origem_ref = origemRef;
+  }
+
+  let { data, error } = await supabase
     .from("perfis")
-    .insert({
-      nome,
-      telefone,
-      cpf,
-      senha_hash: hashPassword(senha)
-    })
+    .insert(profilePayload)
     .select("id,nome,telefone")
     .single();
+
+  if (error && origemRef && isMissingOriginColumnError(error)) {
+    delete profilePayload.origem_ref;
+    const retry = await supabase
+      .from("perfis")
+      .insert(profilePayload)
+      .select("id,nome,telefone")
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error || !data) {
     if (error?.code === "23505") {

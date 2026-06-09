@@ -19,6 +19,10 @@ type PredictionBuilderProps = {
   operationalFee: number;
 };
 
+function getStoredReferral() {
+  return window.localStorage.getItem("origem_ref") || "";
+}
+
 export function PredictionBuilder({
   matchId,
   homeTeam,
@@ -73,7 +77,8 @@ export function PredictionBuilder({
         },
         body: JSON.stringify({
           matchId,
-          guesses
+          guesses,
+          origem_ref: getStoredReferral()
         })
       });
       const payload = await response.json();

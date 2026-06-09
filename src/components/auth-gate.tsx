@@ -28,6 +28,10 @@ async function parseResponse(response: Response) {
   return payload as { user: AuthUser | null };
 }
 
+function getStoredReferral() {
+  return window.localStorage.getItem("origem_ref") || "";
+}
+
 export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: AuthGateProps) {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -91,6 +95,14 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
 
     const formData = new FormData(event.currentTarget);
     const body = Object.fromEntries(formData.entries());
+
+    if (mode === "register") {
+      const origemRef = getStoredReferral();
+
+      if (origemRef) {
+        body.origem_ref = origemRef;
+      }
+    }
 
     try {
       const response = await fetch(mode === "login" ? "/api/auth/login" : "/api/auth/register", {

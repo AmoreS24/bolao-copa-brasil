@@ -31,7 +31,7 @@ function formatExpiration(value: unknown) {
   const date = new Date(asString(value));
 
   if (Number.isNaN(date.getTime())) {
-    return "60 minutos";
+    return "5 minutos";
   }
 
   return new Intl.DateTimeFormat("pt-BR", {
@@ -135,7 +135,7 @@ export default async function PaymentPage({
                 </p>
                 <CopyPixButton payload={pixCopyPaste} />
               </div>
-              <p className="mt-3 text-sm font-bold text-slate-600">A cobrança expira em 60 minutos.</p>
+              <p className="mt-3 text-sm font-bold text-slate-600">A cobrança expira em 5 minutos.</p>
             </div>
           </div>
 
