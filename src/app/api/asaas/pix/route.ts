@@ -12,7 +12,10 @@ type AsaasResponse = {
   id?: string;
   encodedImage?: string;
   payload?: string;
+  copyPaste?: string;
+  expirationDate?: string;
   errors?: Array<{ description?: string }>;
+  [key: string]: unknown;
 };
 
 type AsaasFetchResult = {
@@ -47,6 +50,47 @@ function asCurrencyValue(value: number) {
 
 function cleanNumber(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function readTextField(payload: AsaasResponse, keys: string[]) {
+  for (const key of keys) {
+    const value = payload[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function normalizePixQrCode(payload: AsaasResponse) {
+  return {
+    encodedImage: readTextField(payload, ["encodedImage", "encoded_image", "qrCode", "qr_code"]),
+    copyPaste: readTextField(payload, ["payload", "copyPaste", "copy_paste", "pixCopyPaste", "pix_copy_paste"]),
+    expirationDate: readTextField(payload, ["expirationDate", "expiration_date"]),
+    keys: Object.keys(payload)
+  };
+}
+
+function logPixError(error: unknown) {
+  console.error("ASAAS PIX ERROR:", error);
+  console.error(error instanceof Error ? error.stack : undefined);
+}
+
+function getSupabaseErrorDetails(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const details = error as Record<string, unknown>;
+
+  return {
+    code: details.code,
+    message: details.message,
+    details: details.details,
+    hint: details.hint
+  };
 }
 
 function tomorrowDate() {
@@ -109,6 +153,7 @@ export async function POST(request: Request) {
     }
 
     if (!supabase) {
+      logPixError(new Error("Supabase não configurado."));
       return NextResponse.json({ error: "Supabase não configurado." }, { status: 500 });
     }
 
@@ -165,7 +210,9 @@ export async function POST(request: Request) {
 
     console.log("[Asaas Pix] cobrança criada", {
       status: paymentResult.status,
-      asaasPaymentId: payment.id ?? null
+      asaasPaymentId: payment.id ?? null,
+      keys: Object.keys(payment),
+      billingType: payment.billingType ?? null
     });
 
     if (!payment.id) {
@@ -199,14 +246,23 @@ export async function POST(request: Request) {
     }
 
     const pixQrCode = pixQrCodeResult.payload;
+    const normalizedPixQrCode = normalizePixQrCode(pixQrCode);
 
     console.log("[Asaas Pix] pixQrCode recebido", {
       status: pixQrCodeResult.status,
       asaasPaymentId: payment.id,
-      keys: Object.keys(pixQrCode),
-      hasEncodedImage: Boolean(pixQrCode.encodedImage),
-      hasPayload: Boolean(pixQrCode.payload),
-      payloadPreview: pixQrCode.payload ? `${pixQrCode.payload.slice(0, 24)}...` : null
+      keys: normalizedPixQrCode.keys,
+      hasEncodedImage: Boolean(normalizedPixQrCode.encodedImage),
+      hasPayload: Boolean(normalizedPixQrCode.copyPaste),
+      hasExpirationDate: Boolean(normalizedPixQrCode.expirationDate),
+      payloadPreview: normalizedPixQrCode.copyPaste ? `${normalizedPixQrCode.copyPaste.slice(0, 24)}...` : null
+    });
+
+    console.log("[Asaas Pix] salvando pagamento", {
+      asaasPaymentId: payment.id,
+      value: total,
+      hasQrCode: Boolean(normalizedPixQrCode.encodedImage),
+      hasPixPayload: Boolean(normalizedPixQrCode.copyPaste)
     });
 
     const { data: savedPayment, error: paymentError } = await supabase
@@ -218,16 +274,33 @@ export async function POST(request: Request) {
         valor_palpites: subtotal,
         taxa_operacional: OPERATIONAL_FEE,
         status: "pending",
-        pix_qr_code: pixQrCode.encodedImage ?? null,
-        pix_copia_cola: pixQrCode.payload ?? null,
+        pix_qr_code: normalizedPixQrCode.encodedImage,
+        pix_copia_cola: normalizedPixQrCode.copyPaste,
         expira_em: expiresAt.toISOString()
       })
       .select("id")
       .single();
 
     if (paymentError || !savedPayment) {
+      const error = paymentError ?? new Error("Pagamento não retornado após insert.");
+      logPixError(error);
+      console.log("[Asaas Pix] erro ao salvar pagamento", {
+        asaasPaymentId: payment.id,
+        error: getSupabaseErrorDetails(error)
+      });
+
       return NextResponse.json({ error: paymentError?.message ?? "Não foi possível salvar o pagamento." }, { status: 500 });
     }
+
+    console.log("[Asaas Pix] pagamento salvo", {
+      paymentId: savedPayment.id,
+      asaasPaymentId: payment.id
+    });
+
+    console.log("[Asaas Pix] salvando apostas", {
+      paymentId: savedPayment.id,
+      quantidade: guesses.length
+    });
 
     const { error: guessesError } = await supabase
       .from("apostas")
@@ -243,8 +316,19 @@ export async function POST(request: Request) {
       );
 
     if (guessesError) {
+      logPixError(guessesError);
+      console.log("[Asaas Pix] erro ao salvar apostas", {
+        paymentId: savedPayment.id,
+        error: getSupabaseErrorDetails(guessesError)
+      });
+
       return NextResponse.json({ error: guessesError.message }, { status: 500 });
     }
+
+    console.log("[Asaas Pix] apostas salvas", {
+      paymentId: savedPayment.id,
+      quantidade: guesses.length
+    });
 
     return NextResponse.json({
       payment: {
@@ -254,6 +338,8 @@ export async function POST(request: Request) {
       }
     });
   } catch (error) {
+    logPixError(error);
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Não foi possível gerar o Pix." },
       { status: 500 }
