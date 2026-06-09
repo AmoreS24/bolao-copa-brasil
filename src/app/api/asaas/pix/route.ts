@@ -283,6 +283,8 @@ export async function POST(request: Request) {
       asaasPaymentId: payment.id,
       keys: normalizedPixQrCode.keys,
       hasEncodedImage: Boolean(normalizedPixQrCode.encodedImage),
+      encodedImageLength: normalizedPixQrCode.encodedImage.length,
+      encodedImagePreview: normalizedPixQrCode.encodedImage.slice(0, 50),
       hasPayload: Boolean(normalizedPixQrCode.copyPaste),
       hasExpirationDate: Boolean(normalizedPixQrCode.expirationDate),
       payloadPreview: normalizedPixQrCode.copyPaste ? `${normalizedPixQrCode.copyPaste.slice(0, 24)}...` : null
@@ -310,7 +312,7 @@ export async function POST(request: Request) {
         pix_copia_cola: normalizedPixQrCode.copyPaste,
         expira_em: expiresAt.toISOString()
       })
-      .select("id")
+      .select("id,pix_qr_code")
       .single();
 
     if (paymentError || !savedPayment) {
@@ -329,7 +331,9 @@ export async function POST(request: Request) {
 
     console.log("[Asaas Pix] pagamento salvo", {
       paymentId: savedPayment.id,
-      asaasPaymentId: payment.id
+      asaasPaymentId: payment.id,
+      pixQrCodeLength: typeof savedPayment.pix_qr_code === "string" ? savedPayment.pix_qr_code.length : 0,
+      pixQrCodePreview: typeof savedPayment.pix_qr_code === "string" ? savedPayment.pix_qr_code.slice(0, 50) : ""
     });
 
     console.log("[Asaas Pix] salvando apostas", {

@@ -96,6 +96,13 @@ export default async function PaymentPage({
   const pixCopyPaste = asString(paymentRow.pix_copia_cola);
   const pixQrCode = asString(paymentRow.pix_qr_code);
 
+  console.log("[Pagamento Pix] pix_qr_code recebido", {
+    paymentId,
+    pixQrCodeLength: pixQrCode.length,
+    pixQrCodePreview: pixQrCode.slice(0, 50),
+    hasPixQrCode: Boolean(pixQrCode)
+  });
+
   return (
     <PageShell>
       <section className="mx-auto max-w-2xl rounded-lg bg-white p-5 shadow-field md:p-7">
