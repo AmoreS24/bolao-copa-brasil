@@ -41,6 +41,7 @@ export type LiveUserHistory = {
 
 const ENTRY_VALUE = 10;
 const OPERATIONAL_FEE = 1.99;
+const MINIMUM_DISPLAY_PRIZE = 200;
 const DEFAULT_CAPACITY = 400;
 const DEFAULT_COMPETITION = "Copa do Mundo 2026";
 const GAME_COLUMNS = "id,time_da_casa,time_visitante,data_de_correspondencia,apostas_encerram_em";
@@ -140,7 +141,11 @@ function slugFromTeams(homeTeam: string, awayTeam: string) {
     .replace(/(^-|-$)/g, "");
 }
 
-function matchFromRow(row: DbRow, prize: number, confirmedGuesses: number, index = 0): LiveMatch {
+function displayedPrize(confirmedGuesses: number, entryValue: number) {
+  return Math.max(MINIMUM_DISPLAY_PRIZE, confirmedGuesses * entryValue);
+}
+
+function matchFromRow(row: DbRow, confirmedGuesses: number, index = 0): LiveMatch {
   const homeTeam = stringValue(row, ["time_da_casa", "home_team", "mandante", "casa"], "Brasil");
   const awayTeam = stringValue(row, ["time_visitante", "away_team", "visitante", "adversario"], "Adversário");
   const startsAt = stringValue(
@@ -150,7 +155,8 @@ function matchFromRow(row: DbRow, prize: number, confirmedGuesses: number, index
   );
   const bettingClosesAt = minutesBefore(startsAt, 15);
   const capacity = numberValue(row, ["limite_apostas", "capacidade", "vagas"], DEFAULT_CAPACITY);
-  const rowPrize = numberValue(row, ["premio", "premio_maximo", "premio_estimado", "acumulado"], prize);
+  const entryValue = numberValue(row, ["valor_palpite", "entry_value"], ENTRY_VALUE);
+  const operationalFee = numberValue(row, ["taxa_operacional", "operational_fee"], OPERATIONAL_FEE);
 
   return {
     id: stringValue(row, ["id", "slug"], slugFromTeams(homeTeam, awayTeam)),
@@ -165,9 +171,9 @@ function matchFromRow(row: DbRow, prize: number, confirmedGuesses: number, index
     venue: stringValue(row, ["local", "estadio", "venue"], "Estádio a confirmar"),
     competition: stringValue(row, ["competicao", "competition"], DEFAULT_COMPETITION),
     group: stringValue(row, ["grupo", "group"], index === 0 ? "Próximo jogo" : "Jogo do Brasil"),
-    entryValue: numberValue(row, ["valor_palpite", "entry_value"], ENTRY_VALUE),
-    operationalFee: numberValue(row, ["taxa_operacional", "operational_fee"], OPERATIONAL_FEE),
-    exactPool: rowPrize,
+    entryValue,
+    operationalFee,
+    exactPool: displayedPrize(confirmedGuesses, entryValue),
     rankingPool: numberValue(row, ["premio_torcida", "ranking_pool"], 0),
     confirmedGuesses,
     spotsLeft: Math.max(capacity - confirmedGuesses, 0),
@@ -204,7 +210,10 @@ export async function getConfirmedGuessesCount(matchId?: string) {
     return 0;
   }
 
-  let query = supabase.from("apostas").select("id", { count: "exact", head: true });
+  let query = supabase
+    .from("apostas")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "confirmed");
 
   if (matchId) {
     query = query.eq("jogo_id", matchId);
@@ -217,7 +226,6 @@ export async function getConfirmedGuessesCount(matchId?: string) {
 
 export async function getUpcomingMatches() {
   const supabase = getSupabaseServer();
-  const prize = await getPrizeValue();
 
   if (!supabase) {
     return [];
@@ -237,7 +245,7 @@ export async function getUpcomingMatches() {
     rows.map(async (row, index) => {
       const id = stringValue(row, ["id", "slug"]);
       const confirmedGuesses = await getConfirmedGuessesCount(id);
-      return matchFromRow(row, prize, confirmedGuesses, index);
+      return matchFromRow(row, confirmedGuesses, index);
     })
   );
 }
