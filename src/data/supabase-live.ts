@@ -186,21 +186,8 @@ function matchFromRow(row: DbRow, confirmedGuesses: number, index = 0): LiveMatc
 }
 
 export async function getPrizeValue() {
-  const supabase = getSupabaseServer();
-
-  if (!supabase) {
-    return 0;
-  }
-
-  const { data, error } = await supabase.from("premio_maximo").select("*").limit(1).maybeSingle();
-
-  if (error) {
-    return 0;
-  }
-
-  const row = (data ?? {}) as DbRow;
-
-  return numberValue(row, ["quantia", "valor", "valor_atual", "premio", "premio_maximo", "total", "amount"], 0);
+  const confirmedGuesses = await getConfirmedGuessesCount();
+  return displayedPrize(confirmedGuesses, ENTRY_VALUE);
 }
 
 export async function getConfirmedGuessesCount(matchId?: string) {

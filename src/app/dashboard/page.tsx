@@ -35,7 +35,7 @@ export default async function DashboardPage() {
         <PrimaryLink href={nextMatch ? `/jogos/${nextMatch.id}` : "/"}>Participar do proximo jogo</PrimaryLink>
       </div>
       <section className="grid gap-4 md:grid-cols-4">
-        <StatCard icon={Goal} label="Placar Exato" value={currency(prize)} />
+        <StatCard icon={Goal} label="Prêmio garantido" value={currency(prize)} />
         <StatCard icon={Trophy} label="Ranking" value={currency(nextMatch?.rankingPool ?? 0)} tone="yellow" />
         <StatCard icon={Users} label="Sua posicao" value="-" tone="blue" />
         <StatCard icon={Flag} label="Palpites enviados" value={`${profile.history.length}`} />

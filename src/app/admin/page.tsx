@@ -40,7 +40,7 @@ export default async function AdminPage() {
         <StatCard icon={Users} label="Usuarios" value={`${stats.users}`} />
         <StatCard icon={Banknote} label="Arrecadado" value={currency(stats.paidTotal)} tone="yellow" />
         <StatCard icon={Clock} label="Pix pendentes" value={`${stats.paymentsPending}`} tone="blue" />
-        <StatCard icon={Trophy} label="Premio maximo" value={currency(stats.prize)} />
+        <StatCard icon={Trophy} label="Prêmio garantido" value={currency(stats.prize)} />
       </section>
       <section className="mt-10 grid gap-8 md:grid-cols-2">
         <div>
@@ -64,7 +64,7 @@ export default async function AdminPage() {
           <SectionTitle eyebrow="Acumulado" title="Atualizacao manual" />
           <div className="mb-6 rounded-lg bg-white p-4 shadow-field">
             <label className="grid gap-2 text-sm font-black text-brasil-navy">
-              Premio exibido no topo
+              Prêmio garantido exibido
               <input
                 defaultValue={currency(stats.prize)}
                 className="min-h-12 rounded-lg border border-slate-200 px-4 text-xl font-black text-brasil-green outline-none focus:border-brasil-green"

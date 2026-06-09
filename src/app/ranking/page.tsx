@@ -16,7 +16,7 @@ export default async function RankingPage() {
         <h1 className="text-3xl font-black text-brasil-navy md:text-4xl">Disputa acumulada ate o ultimo jogo do Brasil</h1>
       </div>
       <section className="grid gap-4 md:grid-cols-4">
-        <StatCard icon={Trophy} label="Premio maximo" value={currency(prize)} tone="yellow" />
+        <StatCard icon={Trophy} label="Prêmio garantido" value={currency(prize)} tone="yellow" />
         {ranking.slice(0, 3).map((player) => (
           <StatCard
             key={player.position}
