@@ -4,6 +4,7 @@ import { getMatchById } from "@/data/supabase-live";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { currency } from "@/lib/utils";
 import { CopyPixButton } from "@/components/copy-pix-button";
+import { VerifyPaymentButton } from "@/components/verify-payment-button";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,8 @@ export default async function PaymentPage({
   const total = asNumber(paymentRow.valor_total);
   const pixCopyPaste = asString(paymentRow.pix_copia_cola);
   const pixQrCode = asString(paymentRow.pix_qr_code);
+  const paymentStatus = asString(paymentRow.status);
+  const isPaid = paymentStatus === "paid" || paymentStatus === "pago";
 
   console.log("[Pagamento Pix] pix_qr_code recebido", {
     paymentId,
@@ -166,11 +169,14 @@ export default async function PaymentPage({
           <div className="rounded-lg border border-brasil-green/30 bg-white p-4">
             <p className="flex items-center gap-2 text-lg font-black text-brasil-navy">
               <Radio size={20} className="text-brasil-green" aria-hidden />
-              Status: Aguardando pagamento
+              Status: {isPaid ? "Pagamento aprovado" : "Aguardando pagamento"}
             </p>
             <p className="mt-2 font-semibold leading-relaxed text-slate-600">
-              Seus palpites ficam pendentes até a confirmação automática do Asaas.
+              {isPaid
+                ? "Pagamento aprovado! Seu palpite foi confirmado."
+                : "Seus palpites ficam pendentes até a confirmação automática do Asaas."}
             </p>
+            <VerifyPaymentButton paymentId={paymentId} initialPaid={isPaid} />
           </div>
         </div>
       </section>
