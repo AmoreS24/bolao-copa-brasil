@@ -3,10 +3,25 @@ import type { LucideIcon } from "lucide-react";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { currency } from "@/lib/utils";
 import { getAdminStats } from "@/data/supabase-live";
+import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
+  const user = getCurrentUser();
+  const isMaster = user?.telefone?.replace(/\D/g, "") === "93992071492";
+
+  if (!isMaster) {
+    return (
+      <PageShell>
+        <section className="rounded-lg bg-white p-6 shadow-field">
+          <SectionTitle eyebrow="Admin" title="Acesso restrito" />
+          <p className="font-semibold text-slate-600">Esta área é exclusiva para o usuário master.</p>
+        </section>
+      </PageShell>
+    );
+  }
+
   const stats = await getAdminStats();
   const adminActions: Array<[string, LucideIcon]> = [
     ["Monitorar Pix Asaas pendentes", Clock],

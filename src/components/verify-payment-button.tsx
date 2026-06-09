@@ -77,10 +77,10 @@ export function VerifyPaymentButton({ paymentId, initialPaid }: VerifyPaymentBut
       ) : null}
       {paid ? (
         <Link
-          href="/dashboard"
+          href={`/ranking-bonus?pagamento=${paymentId}`}
           className="inline-flex w-fit items-center rounded-full bg-brasil-blue px-4 py-2 text-sm font-black text-white"
         >
-          Ir para meu painel
+          Responder bônus da torcida
         </Link>
       ) : null}
     </div>
