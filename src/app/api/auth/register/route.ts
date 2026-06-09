@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSessionToken, hashPassword, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 type RegisterRequest = {
@@ -37,6 +38,15 @@ function isMissingOriginColumnError(error: { code?: string; message?: string } |
 }
 
 export async function POST(request: Request) {
+  const limit = rateLimit(request, "auth-register", { limit: 5, windowMs: 10 * 60 * 1000 });
+
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Muitas tentativas. Aguarde alguns minutos e tente novamente." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfter) } }
+    );
+  }
+
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {

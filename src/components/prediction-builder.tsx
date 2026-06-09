@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Wallet } from "lucide-react";
+import { Plus, Trash2, Wallet, X } from "lucide-react";
 import { currency } from "@/lib/utils";
 
 type Guess = {
@@ -36,6 +36,8 @@ export function PredictionBuilder({
   const [guesses, setGuesses] = useState<Guess[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
 
   const subtotal = guesses.length * entryValue;
   const total = guesses.length > 0 ? subtotal + operationalFee : 0;
@@ -183,12 +185,34 @@ export function PredictionBuilder({
 
       {error ? <p className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
 
+      <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <label className="flex items-start gap-3 text-sm font-bold text-slate-700">
+          <input
+            type="checkbox"
+            checked={termsAccepted}
+            onChange={(event) => setTermsAccepted(event.target.checked)}
+            className="mt-1 accent-brasil-green"
+          />
+          <span>
+            Li e concordo com os{" "}
+            <button
+              type="button"
+              onClick={() => setTermsOpen(true)}
+              className="font-black text-brasil-blue underline underline-offset-2"
+            >
+              Termos de Participação
+            </button>
+            .
+          </span>
+        </label>
+      </div>
+
       <button
         type="button"
         onClick={generatePix}
-        disabled={guesses.length === 0 || loading}
+        disabled={guesses.length === 0 || loading || !termsAccepted}
         className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 text-center font-black shadow-field transition ${
-          guesses.length === 0 || loading
+          guesses.length === 0 || loading || !termsAccepted
             ? "bg-slate-200 text-slate-500"
             : "bg-brasil-green text-white hover:-translate-y-0.5"
         }`}
@@ -196,6 +220,34 @@ export function PredictionBuilder({
         <Wallet size={19} aria-hidden />
         {loading ? "Gerando Pix..." : "Gerar Pix"}
       </button>
+
+      {termsOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 px-4 py-6">
+          <section className="relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-5 text-brasil-navy shadow-[0_24px_70px_rgba(0,0,0,0.35)] md:p-6">
+            <button
+              type="button"
+              onClick={() => setTermsOpen(false)}
+              className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-brasil-light text-brasil-blue"
+              aria-label="Fechar termos"
+            >
+              <X size={18} aria-hidden />
+            </button>
+            <h2 className="pr-10 text-2xl font-black">Termos de Participação</h2>
+            <div className="mt-4 grid gap-3 text-sm font-semibold leading-relaxed text-slate-700">
+              <p>Ao participar do Bolão Jogos do Brasil, declaro estar ciente de que:</p>
+              <ul className="grid list-disc gap-2 pl-5">
+                <li>Cada participação possui valor total de R$ 11,99.</li>
+                <li>O palpite só será validado após confirmação do pagamento.</li>
+                <li>O Ranking da Torcida possui apenas uma participação por usuário em cada jogo.</li>
+                <li>Cada jogo pode somar até 30 pontos no Ranking da Torcida.</li>
+                <li>A pontuação será calculada conforme as regras divulgadas na plataforma.</li>
+                <li>A premiação do Ranking da Torcida corresponde a 10% do valor arrecadado, distribuída entre os melhores colocados conforme regra exibida na plataforma.</li>
+                <li>Ao confirmar o pagamento, o usuário aceita as regras de participação.</li>
+              </ul>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

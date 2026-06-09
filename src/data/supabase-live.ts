@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
+import { getCurrentUser } from "@/lib/auth";
 
 type DbRow = Record<string, unknown>;
 
@@ -307,8 +308,9 @@ export async function getAdminStats() {
 
 export async function getProfileSummary() {
   const supabase = getSupabaseServer();
+  const user = getCurrentUser();
 
-  if (!supabase) {
+  if (!supabase || !user) {
     return {
       name: "Participante",
       phone: "",
@@ -317,8 +319,8 @@ export async function getProfileSummary() {
   }
 
   const [{ data: profile }, { data: guesses }] = await Promise.all([
-    supabase.from("perfis").select("*").limit(1).maybeSingle(),
-    supabase.from("apostas").select("*, jogos(*)").limit(10)
+    supabase.from("perfis").select("id,nome,telefone").eq("id", user.id).maybeSingle(),
+    supabase.from("apostas").select("*, jogos(*)").eq("perfil_id", user.id).limit(10)
   ]);
 
   const profileRow = (profile ?? {}) as DbRow;

@@ -1,22 +1,42 @@
 import { CheckCircle2, Medal, Trophy } from "lucide-react";
 import { RankingList } from "@/components/ranking-list";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
-import { getNextMatch, getPrizeValue, getRankingPlayers } from "@/data/supabase-live";
-import { currency } from "@/lib/utils";
+import { getNextMatch, getRankingPlayers } from "@/data/supabase-live";
+import { getCurrentUser } from "@/lib/auth";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function RankingPage() {
-  const [prize, ranking, match] = await Promise.all([getPrizeValue(), getRankingPlayers(10), getNextMatch()]);
+  const [ranking, match] = await Promise.all([getRankingPlayers(10), getNextMatch()]);
+  const user = getCurrentUser();
+  const supabase = getSupabaseServerClient();
+  const { data: existingVote } = user && match && supabase
+    ? await supabase
+      .from("torcida_votos")
+      .select("id")
+      .eq("perfil_id", user.id)
+      .eq("jogo_id", match.id)
+      .maybeSingle()
+    : { data: null };
 
   return (
     <PageShell>
       <div className="mb-6">
         <p className="font-black uppercase text-brasil-green">Ranking da Torcida Brasileira</p>
-        <h1 className="text-3xl font-black text-brasil-navy md:text-4xl">Disputa acumulada ate o ultimo jogo do Brasil</h1>
+        <h1 className="text-3xl font-black text-brasil-navy md:text-4xl">Ranking da Torcida Brasileira</h1>
+        <p className="mt-2 max-w-3xl font-semibold leading-relaxed text-slate-600">
+          A cada jogo do Brasil você pode somar pontos respondendo perguntas extras após confirmar seu palpite.
+          Cada jogo vale até 30 pontos.
+        </p>
       </div>
-      <section className="grid gap-4 md:grid-cols-4">
-        <StatCard icon={Trophy} label="Prêmio garantido" value={currency(prize)} tone="yellow" />
+      <section className="mb-8 rounded-lg bg-brasil-navy p-5 text-white shadow-field">
+        <p className="text-sm font-black uppercase text-brasil-yellow">Premiação</p>
+        <p className="mt-2 text-xl font-black leading-relaxed">
+          10% de todo o valor arrecadado será destinado aos vencedores do Ranking da Torcida.
+        </p>
+      </section>
+      <section className="grid gap-4 md:grid-cols-3">
         {ranking.slice(0, 3).map((player) => (
           <StatCard
             key={player.position}
@@ -28,35 +48,32 @@ export default async function RankingPage() {
         ))}
       </section>
       <section className="mt-10">
-        <SectionTitle eyebrow="Top 10" title="Classificacao geral" />
-        <RankingList players={ranking} />
+        <SectionTitle eyebrow="Top 10" title="Top 10 da Torcida Brasileira" />
+        <RankingList players={ranking} limit={10} />
       </section>
-      <section className="mt-8 rounded-lg bg-white p-5 shadow-field">
-        <SectionTitle eyebrow="Voto da torcida" title="Participacao liberada apos pagamento" />
-        <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-          <label className="grid gap-2 text-sm font-black text-brasil-navy">
-            Seu voto neste jogo
-            <select className="min-h-12 rounded-lg border border-slate-200 bg-white px-4 text-brasil-navy shadow-field outline-none focus:border-brasil-green">
-              <option>{match?.homeTeam ?? "Mandante"} vence</option>
-              <option>Empate</option>
-              <option>{match?.awayTeam ?? "Visitante"} vence</option>
-            </select>
-          </label>
-          <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brasil-green px-5 font-black text-white shadow-field">
-            <CheckCircle2 size={19} aria-hidden />
-            Registrar voto
-          </button>
-        </div>
-        <p className="mt-3 text-sm font-semibold text-slate-600">
-          Limite do MVP: 1 participacao por usuario por jogo, independente da quantidade de palpites pagos.
+      <section className="mt-8 rounded-lg border border-brasil-green/25 bg-white p-5 shadow-field">
+        <SectionTitle eyebrow="Voto da torcida" title="Registre seu voto" />
+        <p className="font-semibold leading-relaxed text-slate-600">
+          Após confirmar seu palpite, responda às 5 perguntas bônus e ative sua participação no Ranking da Torcida.
         </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <span className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brasil-green px-5 font-black text-white shadow-field">
+            <CheckCircle2 size={19} aria-hidden />
+            Participação após pagamento confirmado
+          </span>
+          {existingVote ? (
+            <p className="rounded-lg bg-brasil-light px-4 py-3 font-black text-brasil-green">
+              Você já ativou sua participação neste jogo.
+            </p>
+          ) : null}
+        </div>
       </section>
-      <section className="mt-8 rounded-lg bg-white p-5 shadow-field">
-        <h2 className="text-xl font-black text-brasil-navy">Distribuicao sugerida do premio</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <p className="rounded-lg bg-brasil-light p-4 font-black text-brasil-green">1o lugar: 60%</p>
-          <p className="rounded-lg bg-brasil-light p-4 font-black text-brasil-blue">2o lugar: 30%</p>
-          <p className="rounded-lg bg-brasil-light p-4 font-black text-brasil-navy">3o lugar: 10%</p>
+      <section className="mt-8 max-w-2xl rounded-lg bg-white p-4 shadow-field">
+        <h2 className="text-lg font-black text-brasil-navy">Distribuição da premiação</h2>
+        <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
+          <p className="rounded-lg bg-brasil-light p-3 font-black text-brasil-green">1º lugar: 60%</p>
+          <p className="rounded-lg bg-brasil-light p-3 font-black text-brasil-blue">2º lugar: 30%</p>
+          <p className="rounded-lg bg-brasil-light p-3 font-black text-brasil-navy">3º lugar: 10%</p>
         </div>
       </section>
     </PageShell>

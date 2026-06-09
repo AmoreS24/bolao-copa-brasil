@@ -31,6 +31,9 @@ export default async function DashboardPage() {
         <div>
           <p className="font-black uppercase text-brasil-green">Dashboard do usuario</p>
           <h1 className="text-3xl font-black text-brasil-navy md:text-4xl">Ola, {profile.name}</h1>
+          <p className="mt-2 max-w-2xl font-semibold leading-relaxed text-slate-600">
+            Aqui você acompanha seus palpites realizados, pagamentos confirmados e sua participação nos jogos do Brasil.
+          </p>
         </div>
         <PrimaryLink href={nextMatch ? `/jogos/${nextMatch.id}` : "/"}>Participar do proximo jogo</PrimaryLink>
       </div>

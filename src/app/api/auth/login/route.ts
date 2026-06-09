@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSessionToken, SESSION_COOKIE, sessionCookieOptions, verifyPassword } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 type LoginRequest = {
@@ -8,6 +9,15 @@ type LoginRequest = {
 };
 
 export async function POST(request: Request) {
+  const limit = rateLimit(request, "auth-login", { limit: 8, windowMs: 60 * 1000 });
+
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Muitas tentativas. Aguarde alguns segundos e tente novamente." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfter) } }
+    );
+  }
+
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {

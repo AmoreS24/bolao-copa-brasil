@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getMatchById } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 type PixRequest = {
@@ -155,6 +156,15 @@ async function asaasFetch(path: string, init: RequestInit): Promise<AsaasFetchRe
 
 export async function POST(request: Request) {
   try {
+    const limit = rateLimit(request, "asaas-pix", { limit: 10, windowMs: 60 * 1000 });
+
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "Muitas tentativas de gerar Pix. Aguarde alguns segundos e tente novamente." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfter) } }
+      );
+    }
+
     const [body, user] = await Promise.all([
       request.json() as Promise<PixRequest>,
       getCurrentUser()

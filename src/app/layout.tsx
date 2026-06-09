@@ -14,9 +14,9 @@ export const metadata: Metadata = {
 };
 
 const navItems = [
-  { href: "/", label: "Inicio", icon: Home },
-  { href: "/dashboard", label: "Painel", icon: Gauge },
-  { href: "/ranking", label: "Ranking", icon: Medal }
+  { href: "/", label: "Início", icon: Home },
+  { href: "/dashboard", label: "Meus Palpites", icon: Gauge },
+  { href: "/ranking", label: "Ranking da Torcida", icon: Medal }
 ];
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

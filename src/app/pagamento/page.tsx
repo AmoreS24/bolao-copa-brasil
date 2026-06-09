@@ -1,6 +1,7 @@
 import { Radio } from "lucide-react";
 import { PageShell, SectionTitle } from "@/components/ui";
 import { getMatchById } from "@/data/supabase-live";
+import { getCurrentUser } from "@/lib/auth";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { currency } from "@/lib/utils";
 import { CopyPixButton } from "@/components/copy-pix-button";
@@ -58,9 +59,10 @@ export default async function PaymentPage({
   searchParams?: { pagamento?: string };
 }) {
   const supabase = getSupabaseServerClient();
+  const user = getCurrentUser();
   const paymentId = searchParams?.pagamento;
 
-  if (!paymentId || !supabase) {
+  if (!paymentId || !supabase || !user) {
     return (
       <PageShell>
         <section className="mx-auto max-w-2xl rounded-lg bg-white p-5 shadow-field md:p-7">
@@ -72,8 +74,8 @@ export default async function PaymentPage({
   }
 
   const [{ data: payment }, { data: guesses }] = await Promise.all([
-    supabase.from("pagamentos").select("*").eq("id", paymentId).maybeSingle(),
-    supabase.from("apostas").select("*").eq("pagamento_id", paymentId)
+    supabase.from("pagamentos").select("*").eq("id", paymentId).eq("perfil_id", user.id).maybeSingle(),
+    supabase.from("apostas").select("*").eq("pagamento_id", paymentId).eq("perfil_id", user.id)
   ]);
   const paymentRow = payment as DbRow | null;
   const guessRows = (guesses ?? []) as DbRow[];
