@@ -171,14 +171,26 @@ export async function POST(request: Request) {
     const total = asCurrencyValue(subtotal + OPERATIONAL_FEE);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-    const customerResult = await asaasFetch("/customers", {
-      method: "POST",
-      body: JSON.stringify({
-        name: profile.nome,
-        cpfCnpj: cleanNumber(profile.cpf ?? ""),
-        mobilePhone: cleanNumber(profile.telefone ?? "")
-      })
-    });
+    console.log("STEP 1 OK");
+
+    let customerResult: AsaasFetchResult;
+
+    try {
+      customerResult = await asaasFetch("/customers", {
+        method: "POST",
+        body: JSON.stringify({
+          name: profile.nome,
+          cpfCnpj: cleanNumber(profile.cpf ?? ""),
+          mobilePhone: cleanNumber(profile.telefone ?? "")
+        })
+      });
+    } catch (error) {
+      console.error("FAILED STEP 2", error);
+      throw error;
+    }
+
+    console.log("STEP 2 OK");
+
     const customer = customerResult.payload;
 
     if (!customer.id) {
@@ -202,10 +214,22 @@ export async function POST(request: Request) {
       description: paymentPayload.description
     });
 
-    const paymentResult = await asaasFetch("/payments", {
-      method: "POST",
-      body: JSON.stringify(paymentPayload)
-    });
+    console.log("STEP 3 OK");
+
+    let paymentResult: AsaasFetchResult;
+
+    try {
+      paymentResult = await asaasFetch("/payments", {
+        method: "POST",
+        body: JSON.stringify(paymentPayload)
+      });
+    } catch (error) {
+      console.error("FAILED STEP 4", error);
+      throw error;
+    }
+
+    console.log("STEP 4 OK");
+
     const payment = paymentResult.payload;
 
     console.log("[Asaas Pix] cobrança criada", {
@@ -221,11 +245,15 @@ export async function POST(request: Request) {
 
     let pixQrCodeResult: AsaasFetchResult;
 
+    console.log("STEP 5 OK");
+
     try {
       pixQrCodeResult = await asaasFetch(`/payments/${payment.id}/pixQrCode`, {
         method: "GET"
       });
     } catch (error) {
+      console.error("FAILED STEP 6", error);
+
       if (error instanceof AsaasApiError) {
         console.log("[Asaas Pix] erro ao buscar pixQrCode", {
           status: error.status,
@@ -244,6 +272,8 @@ export async function POST(request: Request) {
 
       throw error;
     }
+
+    console.log("STEP 6 OK");
 
     const pixQrCode = pixQrCodeResult.payload;
     const normalizedPixQrCode = normalizePixQrCode(pixQrCode);
@@ -265,6 +295,8 @@ export async function POST(request: Request) {
       hasPixPayload: Boolean(normalizedPixQrCode.copyPaste)
     });
 
+    console.log("STEP 7 OK");
+
     const { data: savedPayment, error: paymentError } = await supabase
       .from("pagamentos")
       .insert({
@@ -283,6 +315,7 @@ export async function POST(request: Request) {
 
     if (paymentError || !savedPayment) {
       const error = paymentError ?? new Error("Pagamento não retornado após insert.");
+      console.error("FAILED STEP 8", error);
       logPixError(error);
       console.log("[Asaas Pix] erro ao salvar pagamento", {
         asaasPaymentId: payment.id,
@@ -291,6 +324,8 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ error: paymentError?.message ?? "Não foi possível salvar o pagamento." }, { status: 500 });
     }
+
+    console.log("STEP 8 OK");
 
     console.log("[Asaas Pix] pagamento salvo", {
       paymentId: savedPayment.id,
@@ -301,6 +336,8 @@ export async function POST(request: Request) {
       paymentId: savedPayment.id,
       quantidade: guesses.length
     });
+
+    console.log("STEP 9 OK");
 
     const { error: guessesError } = await supabase
       .from("apostas")
@@ -316,6 +353,7 @@ export async function POST(request: Request) {
       );
 
     if (guessesError) {
+      console.error("FAILED STEP 10", guessesError);
       logPixError(guessesError);
       console.log("[Asaas Pix] erro ao salvar apostas", {
         paymentId: savedPayment.id,
@@ -324,6 +362,8 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ error: guessesError.message }, { status: 500 });
     }
+
+    console.log("STEP 10 OK");
 
     console.log("[Asaas Pix] apostas salvas", {
       paymentId: savedPayment.id,
