@@ -6,6 +6,17 @@ import { currency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+function statusLabel(status: string) {
+  const labels: Record<string, string> = {
+    confirmed: "Confirmado ✅",
+    pending_payment: "Aguardando pagamento",
+    paid: "Pago ✅",
+    pending: "Pendente"
+  };
+
+  return labels[status] ?? status;
+}
+
 export default async function DashboardPage() {
   const [matches, prize, profile] = await Promise.all([
     getUpcomingMatches(),
@@ -48,7 +59,7 @@ export default async function DashboardPage() {
               <p className="font-black text-brasil-navy">{item.match}</p>
               <p className="font-semibold text-slate-600">Palpite: {item.guess}</p>
               <p className="font-semibold text-slate-600">{item.points} pontos</p>
-              <p className="font-black text-brasil-green">{item.status}</p>
+              <p className="font-black text-brasil-green">{statusLabel(item.status)}</p>
             </div>
           ))}
           {profile.history.length === 0 ? (

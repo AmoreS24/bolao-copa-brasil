@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { RefreshCw } from "lucide-react";
@@ -13,7 +14,7 @@ export function VerifyPaymentButton({ paymentId, initialPaid }: VerifyPaymentBut
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(
-    initialPaid ? "Pagamento aprovado! Seu palpite foi confirmado." : ""
+    initialPaid ? "✅ Palpite validado com sucesso!" : ""
   );
   const [paid, setPaid] = useState(initialPaid);
 
@@ -41,7 +42,7 @@ export function VerifyPaymentButton({ paymentId, initialPaid }: VerifyPaymentBut
 
       if (payload.paid) {
         setPaid(true);
-        setMessage("Pagamento aprovado! Seu palpite foi confirmado.");
+        setMessage("✅ Palpite validado com sucesso!");
         router.refresh();
         return;
       }
@@ -66,7 +67,21 @@ export function VerifyPaymentButton({ paymentId, initialPaid }: VerifyPaymentBut
         {loading ? "Verificando..." : "Verificar pagamento"}
       </button>
       {message ? (
-        <p className={`text-sm font-black ${paid ? "text-brasil-green" : "text-slate-600"}`}>{message}</p>
+        <p
+          className={`rounded-lg px-3 py-2 text-sm font-black ${
+            paid ? "bg-brasil-green/10 text-brasil-green" : "text-slate-600"
+          }`}
+        >
+          {message}
+        </p>
+      ) : null}
+      {paid ? (
+        <Link
+          href="/dashboard"
+          className="inline-flex w-fit items-center rounded-full bg-brasil-blue px-4 py-2 text-sm font-black text-white"
+        >
+          Ir para meu painel
+        </Link>
       ) : null}
     </div>
   );
