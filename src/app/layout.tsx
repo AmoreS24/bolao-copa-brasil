@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AuthGate } from "@/components/auth-gate";
 import { ReferralCapture } from "@/components/referral-capture";
 import { getCurrentUser } from "@/lib/auth";
+import { isMasterUser } from "@/lib/admin";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,7 +21,7 @@ const navItems = [
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   const user = getCurrentUser();
-  const isMaster = user?.telefone?.replace(/\D/g, "") === "93992071492";
+  const isMaster = isMasterUser(user);
   const visibleNavItems = isMaster ? [...navItems, { href: "/admin", label: "Admin", icon: Shield }] : navItems;
 
   return (

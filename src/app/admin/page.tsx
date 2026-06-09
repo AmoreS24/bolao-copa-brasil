@@ -4,12 +4,13 @@ import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { currency } from "@/lib/utils";
 import { getAdminStats } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
+import { isMasterUser } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const user = getCurrentUser();
-  const isMaster = user?.telefone?.replace(/\D/g, "") === "93992071492";
+  const isMaster = isMasterUser(user);
 
   if (!isMaster) {
     return (
