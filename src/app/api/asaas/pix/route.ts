@@ -23,6 +23,18 @@ type AsaasFetchResult = {
 const ENTRY_VALUE = 10;
 const OPERATIONAL_FEE = 1.99;
 
+class AsaasApiError extends Error {
+  status: number;
+  payload: AsaasResponse;
+
+  constructor(message: string, status: number, payload: AsaasResponse) {
+    super(message);
+    this.name = "AsaasApiError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
 function getAsaasBaseUrl() {
   return process.env.ASAAS_ENV === "production"
     ? "https://api.asaas.com/v3"
@@ -61,7 +73,7 @@ async function asaasFetch(path: string, init: RequestInit): Promise<AsaasFetchRe
   const payload = (await response.json().catch(() => ({}))) as AsaasResponse;
 
   if (!response.ok) {
-    throw new Error(payload.errors?.[0]?.description || "Erro ao comunicar com o Asaas.");
+    throw new AsaasApiError(payload.errors?.[0]?.description || "Erro ao comunicar com o Asaas.", response.status, payload);
   }
 
   return {
@@ -128,16 +140,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Não foi possível criar o cliente no Asaas." }, { status: 502 });
     }
 
+    const paymentPayload = {
+      customer: customer.id,
+      billingType: "PIX",
+      value: total,
+      dueDate: tomorrowDate(),
+      description: `Bolão ${match.homeTeam} x ${match.awayTeam} - ${guesses.length} palpite(s)`,
+      externalReference: `${user.id}:${match.id}:${Date.now()}`
+    };
+
+    console.log("[Asaas Pix] criando cobrança", {
+      customer: paymentPayload.customer,
+      billingType: paymentPayload.billingType,
+      value: paymentPayload.value,
+      dueDate: paymentPayload.dueDate,
+      description: paymentPayload.description
+    });
+
     const paymentResult = await asaasFetch("/payments", {
       method: "POST",
-      body: JSON.stringify({
-        customer: customer.id,
-        billingType: "PIX",
-        value: total,
-        dueDate: tomorrowDate(),
-        description: `Bolão ${match.homeTeam} x ${match.awayTeam} - ${guesses.length} palpite(s)`,
-        externalReference: `${user.id}:${match.id}:${Date.now()}`
-      })
+      body: JSON.stringify(paymentPayload)
     });
     const payment = paymentResult.payload;
 
@@ -150,9 +172,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Não foi possível criar a cobrança no Asaas." }, { status: 502 });
     }
 
-    const pixQrCodeResult = await asaasFetch(`/payments/${payment.id}/pixQrCode`, {
-      method: "GET"
-    });
+    let pixQrCodeResult: AsaasFetchResult;
+
+    try {
+      pixQrCodeResult = await asaasFetch(`/payments/${payment.id}/pixQrCode`, {
+        method: "GET"
+      });
+    } catch (error) {
+      if (error instanceof AsaasApiError) {
+        console.log("[Asaas Pix] erro ao buscar pixQrCode", {
+          status: error.status,
+          asaasPaymentId: payment.id,
+          response: {
+            keys: Object.keys(error.payload),
+            errors: error.payload.errors
+          }
+        });
+
+        return NextResponse.json(
+          { error: "Não foi possível gerar o Pix. Tente novamente." },
+          { status: 502 }
+        );
+      }
+
+      throw error;
+    }
+
     const pixQrCode = pixQrCodeResult.payload;
 
     console.log("[Asaas Pix] pixQrCode recebido", {
