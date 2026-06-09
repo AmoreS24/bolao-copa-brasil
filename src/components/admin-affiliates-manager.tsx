@@ -26,6 +26,7 @@ function normalizeCode(value: string) {
 
 export function AdminAffiliatesManager({ affiliates }: { affiliates: AdminAffiliate[] }) {
   const [items, setItems] = useState(affiliates);
+  const [nome, setNome] = useState("");
   const [codigo, setCodigo] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -68,8 +69,8 @@ export function AdminAffiliatesManager({ affiliates }: { affiliates: AdminAffili
         },
         ...current
       ]);
+      setNome("");
       setCodigo("");
-      event.currentTarget.reset();
       setMessage("Link criado com sucesso.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível criar o link.");
@@ -87,6 +88,8 @@ export function AdminAffiliatesManager({ affiliates }: { affiliates: AdminAffili
             <input
               name="nome"
               required
+              value={nome}
+              onChange={(event) => setNome(event.target.value)}
               className="min-h-12 rounded-lg border border-slate-200 px-4 font-semibold outline-none focus:border-brasil-green"
               placeholder="Ex: Erick"
             />
