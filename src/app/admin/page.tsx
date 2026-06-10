@@ -1,14 +1,33 @@
 import { Banknote, CheckCircle2, Clock, Edit3, Trophy, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { currency } from "@/lib/utils";
-import { getAdminStats } from "@/data/supabase-live";
+import { getAdminStats, type AdminBetFilter } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
 import { isMasterUser } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage() {
+function statusLabel(status: string) {
+  const labels: Record<string, string> = {
+    confirmed: "Confirmado",
+    paid: "Pago",
+    received: "Recebido",
+    PAYMENT_RECEIVED: "Recebido",
+    pending_payment: "Aguardando pagamento",
+    pending: "Pendente",
+    aguardando_pagamento: "Aguardando pagamento"
+  };
+
+  return labels[status] ?? status;
+}
+
+function normalizeFilter(value?: string): AdminBetFilter {
+  return value === "confirmados" || value === "pendentes" ? value : "todos";
+}
+
+export default async function AdminPage({ searchParams }: { searchParams?: { filtro?: string } }) {
   const user = getCurrentUser();
   const isMaster = isMasterUser(user);
 
@@ -24,6 +43,10 @@ export default async function AdminPage() {
   }
 
   const stats = await getAdminStats();
+  const activeFilter = normalizeFilter(searchParams?.filtro);
+  const filteredBets = activeFilter === "todos"
+    ? stats.bets
+    : stats.bets.filter((bet) => bet.filterStatus === activeFilter);
   const adminActions: Array<[string, LucideIcon]> = [
     ["Monitorar Pix Asaas pendentes", Clock],
     ["Confirmar palpites pagos automaticamente", CheckCircle2],
@@ -42,6 +65,69 @@ export default async function AdminPage() {
         <StatCard icon={Banknote} label="Arrecadado" value={currency(stats.paidTotal)} tone="yellow" />
         <StatCard icon={Clock} label="Pix pendentes" value={`${stats.paymentsPending}`} tone="blue" />
         <StatCard icon={Trophy} label="Prêmio garantido" value={currency(stats.prize)} />
+      </section>
+      <section className="mt-10">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <SectionTitle eyebrow="Operação" title="Apostas realizadas" />
+          <div className="flex flex-wrap gap-2">
+            {[
+              ["Todos", "todos"],
+              ["Confirmados", "confirmados"],
+              ["Pendentes", "pendentes"]
+            ].map(([label, value]) => {
+              const selected = activeFilter === value;
+
+              return (
+                <Link
+                  key={value}
+                  href={value === "todos" ? "/admin" : `/admin?filtro=${value}`}
+                  className={`inline-flex min-h-10 items-center rounded-full px-4 text-sm font-black shadow-field ${
+                    selected ? "bg-brasil-green text-white" : "bg-white text-brasil-navy"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+        <div className="mt-4 overflow-hidden rounded-lg bg-white shadow-field">
+          <div className="overflow-x-auto">
+            <table className="min-w-[980px] w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs font-black uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Usuário</th>
+                  <th className="px-4 py-3">Telefone</th>
+                  <th className="px-4 py-3">Origem/ref</th>
+                  <th className="px-4 py-3">Jogo</th>
+                  <th className="px-4 py-3">Placar</th>
+                  <th className="px-4 py-3">Aposta</th>
+                  <th className="px-4 py-3">Pagamento</th>
+                  <th className="px-4 py-3">Valor pago</th>
+                  <th className="px-4 py-3">Data/hora</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredBets.map((bet) => (
+                  <tr key={bet.id} className="font-semibold text-slate-700">
+                    <td className="px-4 py-3 font-black text-brasil-navy">{bet.userName}</td>
+                    <td className="px-4 py-3">{bet.userPhone || "-"}</td>
+                    <td className="px-4 py-3">{bet.originRef}</td>
+                    <td className="px-4 py-3">{bet.match}</td>
+                    <td className="px-4 py-3 font-black text-brasil-green">{bet.guess}</td>
+                    <td className="px-4 py-3">{statusLabel(bet.betStatus)}</td>
+                    <td className="px-4 py-3">{statusLabel(bet.paymentStatus)}</td>
+                    <td className="px-4 py-3 font-black text-brasil-navy">{currency(bet.paidValue)}</td>
+                    <td className="px-4 py-3">{bet.createdAtLabel || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filteredBets.length === 0 ? (
+            <div className="p-5 font-semibold text-slate-600">Nenhuma aposta encontrada para este filtro.</div>
+          ) : null}
+        </div>
       </section>
       <section className="mt-10 grid gap-8 md:grid-cols-2">
         <div>

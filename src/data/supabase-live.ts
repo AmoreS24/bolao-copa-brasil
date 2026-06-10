@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { getCurrentUser } from "@/lib/auth";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 type DbRow = Record<string, unknown>;
 
@@ -40,12 +41,30 @@ export type LiveUserHistory = {
   status: string;
 };
 
+export type AdminBetFilter = "todos" | "confirmados" | "pendentes";
+
+export type AdminBetRow = {
+  id: string;
+  userName: string;
+  userPhone: string;
+  originRef: string;
+  match: string;
+  guess: string;
+  betStatus: string;
+  paymentStatus: string;
+  paidValue: number;
+  createdAtLabel: string;
+  filterStatus: Exclude<AdminBetFilter, "todos"> | "outros";
+};
+
 const ENTRY_VALUE = 10;
 const OPERATIONAL_FEE = 1.99;
 const MINIMUM_DISPLAY_PRIZE = 200;
 const DEFAULT_CAPACITY = 400;
 const DEFAULT_COMPETITION = "Copa do Mundo 2026";
 const GAME_COLUMNS = "id,time_da_casa,time_visitante,data_de_correspondencia,apostas_encerram_em";
+const PAID_PAYMENT_STATUSES = ["paid", "confirmed", "received", "PAYMENT_RECEIVED"];
+const PENDING_PAYMENT_STATUSES = ["pending", "pending_payment", "aguardando_pagamento"];
 
 function getSupabaseServer() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -121,6 +140,23 @@ function timeLabel(value: string) {
 
 function shortTimeLabel(value: string) {
   return timeLabel(value).replace(":00", "").replace(" (Brasília)", "h");
+}
+
+function dateTimeLabel(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo"
+  }).format(date);
 }
 
 function minutesBefore(value: string, minutes: number) {
@@ -279,30 +315,82 @@ export async function getRankingPlayers(limit = 10): Promise<LiveRankingPlayer[]
 }
 
 export async function getAdminStats() {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseServerClient() ?? getSupabaseServer();
   const [matches, prize] = await Promise.all([getUpcomingMatches(), getPrizeValue()]);
 
   if (!supabase) {
-    return { matches, prize, users: 0, paymentsPending: 0, paidTotal: 0 };
+    return { matches, prize, users: 0, paymentsPending: 0, paidTotal: 0, bets: [] as AdminBetRow[] };
   }
 
   const [{ count: users }, { count: paymentsPending }, { data: paidPayments }] = await Promise.all([
     supabase.from("perfis").select("id", { count: "exact", head: true }),
-    supabase.from("pagamentos").select("id", { count: "exact", head: true }).eq("status", "pendente"),
-    supabase.from("pagamentos").select("*").eq("status", "pago")
+    supabase.from("pagamentos").select("id", { count: "exact", head: true }).in("status", PENDING_PAYMENT_STATUSES),
+    supabase.from("pagamentos").select("valor_total").in("status", PAID_PAYMENT_STATUSES)
   ]);
 
   const paidTotal = ((paidPayments ?? []) as DbRow[]).reduce(
-    (total, payment) => total + numberValue(payment, ["valor", "amount", "total"], 0),
+    (total, payment) => total + numberValue(payment, ["valor_total"], 0),
     0
   );
+
+  const { data: betsData } = await supabase
+    .from("apostas")
+    .select("id,pagamento_id,perfil_id,jogo_id,gols_brasil,gols_adversario,status,criado_em")
+    .order("criado_em", { ascending: false })
+    .limit(200);
+
+  const betsRows = (betsData ?? []) as DbRow[];
+  const profileIds = Array.from(new Set(betsRows.map((row) => stringValue(row, ["perfil_id"])).filter(Boolean)));
+  const paymentIds = Array.from(new Set(betsRows.map((row) => stringValue(row, ["pagamento_id"])).filter(Boolean)));
+  const matchIds = Array.from(new Set(betsRows.map((row) => stringValue(row, ["jogo_id"])).filter(Boolean)));
+
+  const [{ data: profilesData }, { data: paymentsData }, { data: gamesData }] = await Promise.all([
+    profileIds.length
+      ? supabase.from("perfis").select("id,nome,telefone,origem_ref").in("id", profileIds)
+      : Promise.resolve({ data: [] }),
+    paymentIds.length
+      ? supabase.from("pagamentos").select("id,status,valor_total,origem_ref,criado_em").in("id", paymentIds)
+      : Promise.resolve({ data: [] }),
+    matchIds.length
+      ? supabase.from("jogos").select(GAME_COLUMNS as "*").in("id", matchIds)
+      : Promise.resolve({ data: [] })
+  ]);
+
+  const profilesById = new Map(((profilesData ?? []) as DbRow[]).map((row) => [stringValue(row, ["id"]), row]));
+  const paymentsById = new Map(((paymentsData ?? []) as DbRow[]).map((row) => [stringValue(row, ["id"]), row]));
+  const gamesById = new Map(((gamesData ?? []) as DbRow[]).map((row) => [stringValue(row, ["id"]), row]));
+
+  const bets = betsRows.map((bet): AdminBetRow => {
+    const profile = profilesById.get(stringValue(bet, ["perfil_id"])) ?? {};
+    const payment = paymentsById.get(stringValue(bet, ["pagamento_id"])) ?? {};
+    const game = gamesById.get(stringValue(bet, ["jogo_id"])) ?? {};
+    const betStatus = stringValue(bet, ["status"], "pending_payment");
+    const paymentStatus = stringValue(payment, ["status"], "pending");
+    const isConfirmed = betStatus === "confirmed" || PAID_PAYMENT_STATUSES.includes(paymentStatus);
+    const isPending = betStatus === "pending_payment" || PENDING_PAYMENT_STATUSES.includes(paymentStatus);
+
+    return {
+      id: stringValue(bet, ["id"]),
+      userName: stringValue(profile, ["nome"], "Participante"),
+      userPhone: stringValue(profile, ["telefone"], ""),
+      originRef: stringValue(payment, ["origem_ref"], stringValue(profile, ["origem_ref"], "-")) || "-",
+      match: `${stringValue(game, ["time_da_casa"], "Brasil")} x ${stringValue(game, ["time_visitante"], "Adversário")}`,
+      guess: `${numberValue(bet, ["gols_brasil"], 0)} x ${numberValue(bet, ["gols_adversario"], 0)}`,
+      betStatus,
+      paymentStatus,
+      paidValue: numberValue(payment, ["valor_total"], 0),
+      createdAtLabel: dateTimeLabel(stringValue(bet, ["criado_em"], stringValue(payment, ["criado_em"]))),
+      filterStatus: isConfirmed ? "confirmados" : isPending ? "pendentes" : "outros"
+    };
+  });
 
   return {
     matches,
     prize,
     users: users ?? 0,
     paymentsPending: paymentsPending ?? 0,
-    paidTotal
+    paidTotal,
+    bets
   };
 }
 
