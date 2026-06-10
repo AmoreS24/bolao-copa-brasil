@@ -6,6 +6,7 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { currency } from "@/lib/utils";
 import { CopyPixButton } from "@/components/copy-pix-button";
 import { VerifyPaymentButton } from "@/components/verify-payment-button";
+import { SUPPORT_WHATSAPP_URL } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
 
@@ -124,9 +125,29 @@ export default async function PaymentPage({
           <div className="grid gap-3 md:grid-cols-[0.8fr_1.2fr]">
             <div className="grid min-h-48 place-items-center rounded-lg bg-brasil-light p-5 text-brasil-blue">
               {pixQrCode ? (
-                <img src={qrCodeSource(pixQrCode)} alt="QR Code Pix" className="h-44 w-44 object-contain" />
+                <div className="grid justify-items-center gap-3">
+                  <img src={qrCodeSource(pixQrCode)} alt="QR Code Pix" className="h-44 w-44 object-contain" />
+                  <a
+                    href={SUPPORT_WHATSAPP_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-center text-sm font-black text-brasil-blue"
+                  >
+                    Não conseguiu concluir o pagamento? Falar com suporte
+                  </a>
+                </div>
               ) : (
-                <p className="px-4 text-center text-sm font-bold text-slate-600">QR Code indisponível.</p>
+                <div className="grid justify-items-center gap-3">
+                  <p className="px-4 text-center text-sm font-bold text-slate-600">QR Code indisponível.</p>
+                  <a
+                    href={SUPPORT_WHATSAPP_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-center text-sm font-black text-brasil-blue"
+                  >
+                    Não conseguiu concluir o pagamento? Falar com suporte
+                  </a>
+                </div>
               )}
             </div>
             <div className="rounded-lg bg-brasil-light p-4">

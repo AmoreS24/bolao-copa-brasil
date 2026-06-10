@@ -45,6 +45,7 @@ export type AdminBetFilter = "todos" | "confirmados" | "pendentes";
 
 export type AdminBetRow = {
   id: string;
+  paymentId: string;
   userName: string;
   userPhone: string;
   originRef: string;
@@ -55,6 +56,7 @@ export type AdminBetRow = {
   paidValue: number;
   createdAtLabel: string;
   filterStatus: Exclude<AdminBetFilter, "todos"> | "outros";
+  canConfirmManually: boolean;
 };
 
 const ENTRY_VALUE = 10;
@@ -362,7 +364,8 @@ export async function getAdminStats() {
 
   const bets = betsRows.map((bet): AdminBetRow => {
     const profile = profilesById.get(stringValue(bet, ["perfil_id"])) ?? {};
-    const payment = paymentsById.get(stringValue(bet, ["pagamento_id"])) ?? {};
+    const paymentId = stringValue(bet, ["pagamento_id"]);
+    const payment = paymentsById.get(paymentId) ?? {};
     const game = gamesById.get(stringValue(bet, ["jogo_id"])) ?? {};
     const betStatus = stringValue(bet, ["status"], "pending_payment");
     const paymentStatus = stringValue(payment, ["status"], "pending");
@@ -371,6 +374,7 @@ export async function getAdminStats() {
 
     return {
       id: stringValue(bet, ["id"]),
+      paymentId,
       userName: stringValue(profile, ["nome"], "Participante"),
       userPhone: stringValue(profile, ["telefone"], ""),
       originRef: stringValue(payment, ["origem_ref"], stringValue(profile, ["origem_ref"], "-")) || "-",
@@ -380,7 +384,8 @@ export async function getAdminStats() {
       paymentStatus,
       paidValue: numberValue(payment, ["valor_total"], 0),
       createdAtLabel: dateTimeLabel(stringValue(bet, ["criado_em"], stringValue(payment, ["criado_em"]))),
-      filterStatus: isConfirmed ? "confirmados" : isPending ? "pendentes" : "outros"
+      filterStatus: isConfirmed ? "confirmados" : isPending ? "pendentes" : "outros",
+      canConfirmManually: Boolean(paymentId && isPending && !isConfirmed)
     };
   });
 

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Gauge, Home, Medal, Shield, Trophy } from "lucide-react";
+import { Gauge, Headphones, Home, Medal, Shield, Trophy } from "lucide-react";
 import Link from "next/link";
 import { AuthGate } from "@/components/auth-gate";
 import { ReferralCapture } from "@/components/referral-capture";
 import { getCurrentUser } from "@/lib/auth";
 import { isMasterUser } from "@/lib/admin";
+import { SUPPORT_WHATSAPP_URL } from "@/lib/support";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,7 +17,8 @@ export const metadata: Metadata = {
 const navItems = [
   { href: "/", label: "Início", icon: Home },
   { href: "/dashboard", label: "Meus Palpites", icon: Gauge },
-  { href: "/ranking", label: "Ranking da Torcida", icon: Medal }
+  { href: "/ranking", label: "Ranking da Torcida", icon: Medal },
+  { href: SUPPORT_WHATSAPP_URL, label: "Suporte", icon: Headphones, external: true }
 ];
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
@@ -41,6 +43,8 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
                 <Link
                   key={item.href}
                   href={item.href}
+                  target={item.external ? "_blank" : undefined}
+                  rel={item.external ? "noreferrer" : undefined}
                   className="inline-flex items-center gap-2 rounded-full px-4 py-2 transition hover:bg-white hover:text-brasil-green hover:shadow-field"
                 >
                   <item.icon size={16} aria-hidden />
@@ -52,9 +56,15 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           </div>
         </header>
         {children}
-        <nav className={`fixed inset-x-3 bottom-3 z-40 grid ${isMaster ? "grid-cols-4" : "grid-cols-3"} rounded-full border border-white/70 bg-white/95 p-1 text-[11px] font-black text-brasil-navy shadow-[0_12px_34px_rgba(7,27,77,0.2)] backdrop-blur md:hidden`}>
+        <nav className={`fixed inset-x-3 bottom-3 z-40 grid ${isMaster ? "grid-cols-5" : "grid-cols-4"} rounded-full border border-white/70 bg-white/95 p-1 text-[11px] font-black text-brasil-navy shadow-[0_12px_34px_rgba(7,27,77,0.2)] backdrop-blur md:hidden`}>
           {visibleNavItems.map((item) => (
-            <Link key={item.href} href={item.href} className="grid min-h-14 place-items-center gap-0.5 rounded-full hover:bg-brasil-light hover:text-brasil-green">
+            <Link
+              key={item.href}
+              href={item.href}
+              target={item.external ? "_blank" : undefined}
+              rel={item.external ? "noreferrer" : undefined}
+              className="grid min-h-14 place-items-center gap-0.5 rounded-full hover:bg-brasil-light hover:text-brasil-green"
+            >
               <item.icon size={18} aria-hidden />
               <span>{item.label}</span>
             </Link>

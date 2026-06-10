@@ -2,6 +2,7 @@ import { Banknote, CheckCircle2, Clock, Edit3, Trophy, Users } from "lucide-reac
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
+import { ManualPaymentConfirmButton } from "@/components/manual-payment-confirm-button";
 import { currency } from "@/lib/utils";
 import { getAdminStats, type AdminBetFilter } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
@@ -105,6 +106,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
                   <th className="px-4 py-3">Pagamento</th>
                   <th className="px-4 py-3">Valor pago</th>
                   <th className="px-4 py-3">Data/hora</th>
+                  <th className="px-4 py-3">Ação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -119,6 +121,13 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
                     <td className="px-4 py-3">{statusLabel(bet.paymentStatus)}</td>
                     <td className="px-4 py-3 font-black text-brasil-navy">{currency(bet.paidValue)}</td>
                     <td className="px-4 py-3">{bet.createdAtLabel || "-"}</td>
+                    <td className="px-4 py-3">
+                      {bet.canConfirmManually ? (
+                        <ManualPaymentConfirmButton paymentId={bet.paymentId} />
+                      ) : (
+                        <span className="text-xs font-bold text-slate-400">-</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

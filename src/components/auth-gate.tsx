@@ -3,6 +3,7 @@
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, LogIn, LogOut, UserPlus, X } from "lucide-react";
+import { SUPPORT_WHATSAPP_URL } from "@/lib/support";
 
 type AuthUser = {
   id: string;
@@ -209,6 +210,16 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
                 {mode === "login" ? <LogIn size={18} aria-hidden /> : <UserPlus size={18} aria-hidden />}
                 {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar cadastro"}
               </button>
+              <a
+                href={SUPPORT_WHATSAPP_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="text-center text-sm font-black text-brasil-blue"
+              >
+                {mode === "login"
+                  ? "Problemas para acessar? Falar com suporte"
+                  : "Dúvidas no cadastro? Falar com suporte"}
+              </a>
             </form>
 
             <button
