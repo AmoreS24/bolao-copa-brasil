@@ -64,6 +64,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Preencha todos os campos obrigatórios." }, { status: 400 });
   }
 
+  if (cpf.length !== 11) {
+    return NextResponse.json({ error: "CPF inválido. Digite os 11 números do CPF." }, { status: 400 });
+  }
+
   if (senha.length < 6) {
     return NextResponse.json({ error: "A senha deve ter pelo menos 6 caracteres." }, { status: 400 });
   }

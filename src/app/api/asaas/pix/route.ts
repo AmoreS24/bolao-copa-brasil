@@ -217,6 +217,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Perfil não encontrado." }, { status: 404 });
     }
 
+    const normalizedCpf = cleanNumber(profile.cpf ?? "");
+
+    if (normalizedCpf.length !== 11) {
+      return NextResponse.json(
+        { error: "CPF inválido no cadastro. Corrija seus dados antes de gerar o Pix." },
+        { status: 400 }
+      );
+    }
+
     const subtotal = asCurrencyValue(guesses.length * ENTRY_VALUE);
     const total = asCurrencyValue(subtotal + OPERATIONAL_FEE);
     const expiresAt = new Date(Date.now() + PIX_EXPIRATION_MINUTES * 60 * 1000);
@@ -231,7 +240,7 @@ export async function POST(request: Request) {
         method: "POST",
         body: JSON.stringify({
           name: profile.nome,
-          cpfCnpj: cleanNumber(profile.cpf ?? ""),
+          cpfCnpj: normalizedCpf,
           mobilePhone: cleanNumber(profile.telefone ?? "")
         })
       });
