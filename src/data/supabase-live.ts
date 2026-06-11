@@ -59,6 +59,13 @@ export type AdminBetRow = {
   canConfirmManually: boolean;
 };
 
+export type AdminAffiliateRow = {
+  originRef: string;
+  signups: number;
+  confirmedPayments: number;
+  paidTotal: number;
+};
+
 const ENTRY_VALUE = 10;
 const OPERATIONAL_FEE = 1.99;
 const MINIMUM_DISPLAY_PRIZE = 200;
@@ -321,19 +328,75 @@ export async function getAdminStats() {
   const [matches, prize] = await Promise.all([getUpcomingMatches(), getPrizeValue()]);
 
   if (!supabase) {
-    return { matches, prize, users: 0, paymentsPending: 0, paidTotal: 0, bets: [] as AdminBetRow[] };
+    return {
+      matches,
+      prize,
+      users: 0,
+      paymentsConfirmed: 0,
+      paymentsPending: 0,
+      conversionRate: 0,
+      paidTotal: 0,
+      bets: [] as AdminBetRow[],
+      topAffiliates: [] as AdminAffiliateRow[]
+    };
   }
 
-  const [{ count: users }, { count: paymentsPending }, { data: paidPayments }] = await Promise.all([
+  const [{ count: users }, { count: paymentsPending }, { data: paidPayments }, { data: referralProfiles }] = await Promise.all([
     supabase.from("perfis").select("id", { count: "exact", head: true }),
     supabase.from("pagamentos").select("id", { count: "exact", head: true }).in("status", PENDING_PAYMENT_STATUSES),
-    supabase.from("pagamentos").select("valor_total").in("status", PAID_PAYMENT_STATUSES)
+    supabase.from("pagamentos").select("id,valor_total,origem_ref").in("status", PAID_PAYMENT_STATUSES),
+    supabase.from("perfis").select("origem_ref")
   ]);
 
+  const usersCount = users ?? 0;
+  const confirmedPaymentsRows = (paidPayments ?? []) as DbRow[];
+  const paymentsConfirmed = confirmedPaymentsRows.length;
   const paidTotal = ((paidPayments ?? []) as DbRow[]).reduce(
     (total, payment) => total + numberValue(payment, ["valor_total"], 0),
     0
   );
+  const affiliateStats = new Map<string, AdminAffiliateRow>();
+
+  for (const profile of (referralProfiles ?? []) as DbRow[]) {
+    const originRef = stringValue(profile, ["origem_ref"]);
+
+    if (!originRef) {
+      continue;
+    }
+
+    const current = affiliateStats.get(originRef) ?? {
+      originRef,
+      signups: 0,
+      confirmedPayments: 0,
+      paidTotal: 0
+    };
+
+    current.signups += 1;
+    affiliateStats.set(originRef, current);
+  }
+
+  for (const payment of confirmedPaymentsRows) {
+    const originRef = stringValue(payment, ["origem_ref"]);
+
+    if (!originRef) {
+      continue;
+    }
+
+    const current = affiliateStats.get(originRef) ?? {
+      originRef,
+      signups: 0,
+      confirmedPayments: 0,
+      paidTotal: 0
+    };
+
+    current.confirmedPayments += 1;
+    current.paidTotal += numberValue(payment, ["valor_total"], 0);
+    affiliateStats.set(originRef, current);
+  }
+
+  const topAffiliates = Array.from(affiliateStats.values())
+    .sort((a, b) => b.paidTotal - a.paidTotal || b.confirmedPayments - a.confirmedPayments || b.signups - a.signups)
+    .slice(0, 10);
 
   const { data: betsData } = await supabase
     .from("apostas")
@@ -392,10 +455,13 @@ export async function getAdminStats() {
   return {
     matches,
     prize,
-    users: users ?? 0,
+    users: usersCount,
+    paymentsConfirmed,
     paymentsPending: paymentsPending ?? 0,
+    conversionRate: usersCount > 0 ? Math.round((paymentsConfirmed / usersCount) * 100) : 0,
     paidTotal,
-    bets
+    bets,
+    topAffiliates
   };
 }
 
