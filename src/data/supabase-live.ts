@@ -544,6 +544,7 @@ export async function getClosedRounds(): Promise<ClosedRound[]> {
       .from("rodada_vencedores")
       .select("id,jogo_id,nome,telefone_mascarado,palpite_casa,palpite_visitante,valor_premio")
       .in("jogo_id", gameIds)
+      .order("criado_em", { ascending: false })
     : { data: [] };
   const winnersByGame = new Map<string, ClosedRoundWinner[]>();
 

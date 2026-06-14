@@ -1,6 +1,7 @@
 import { CalendarDays, Clock, Flame, MapPin, Trophy, Users, Wallet } from "lucide-react";
 import { getClosedRounds, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
+import { countryWithFlag } from "@/lib/countries";
 import { MatchCountdown } from "@/components/match-countdown";
 import { AnimatedScoreboard } from "@/components/animated-scoreboard";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
@@ -32,7 +33,9 @@ export default async function Home() {
 
   const publicEntryValue = match.entryValue + match.operationalFee;
   const latestClosedRound = closedRounds[0];
-  const latestWinner = latestClosedRound?.winners[0];
+  const latestWinner = latestClosedRound?.winners.find(
+    (winner) => winner.name.trim().toLowerCase() === "lidiane santos barreto"
+  ) ?? latestClosedRound?.winners[0];
   const latestPaidTotal = latestClosedRound?.winners.reduce((total, winner) => total + winner.prizeValue, 0) ?? 0;
   const bettingStatusLabel = match.status === "encerrado"
     ? "encerrado"
@@ -54,9 +57,9 @@ export default async function Home() {
               {roundLabel}
             </p>
             <h1 className="match-title mx-auto max-w-4xl font-sans text-4xl font-black uppercase leading-[0.98] tracking-wide sm:text-5xl md:text-[3.4rem]">
-              <span className="text-brasil-yellow">{match.homeTeam}</span>
+              <span className="text-brasil-yellow">{countryWithFlag(match.homeTeam)}</span>
               <span className="mx-2 align-middle text-2xl text-white md:mx-4 md:text-4xl">x</span>
-              <span className="text-white">{match.awayTeam}</span>
+              <span className="text-white">{countryWithFlag(match.awayTeam)}</span>
             </h1>
             <div className="mx-auto mt-3 flex max-w-3xl flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-sm font-bold text-white/90 sm:text-base">
               <p className="flex items-center gap-1.5">
@@ -140,11 +143,18 @@ export default async function Home() {
                 </span>
                 <div>
                   <p className="text-2xl font-black text-brasil-navy">🏆 Temos vencedor!</p>
-                  <p className="mt-1 font-black text-brasil-green">Resultado oficial: {latestClosedRound.result}</p>
+                  <p className="mt-1 font-black text-brasil-green uppercase">Resultado oficial: {latestClosedRound.result}</p>
                   {latestWinner ? (
-                    <p className="mt-1 font-semibold text-slate-600">
-                      Última vencedora: {latestWinner.name}. {currency(latestPaidTotal)} pagos na rodada anterior.
-                    </p>
+                    <div className="mt-3 grid gap-2 font-semibold text-slate-600">
+                      <p>
+                        Última vencedora:<br />
+                        <span className="font-black uppercase text-brasil-navy">{latestWinner.name}</span>
+                      </p>
+                      <p>
+                        Premiação paga:<br />
+                        <span className="font-black text-brasil-green">{currency(latestPaidTotal)}</span>
+                      </p>
+                    </div>
                   ) : (
                     <p className="mt-1 font-semibold text-slate-600">Confira os vencedores da rodada.</p>
                   )}
@@ -161,7 +171,7 @@ export default async function Home() {
               <article key={nextMatch.id} className="rounded-lg bg-white p-4 shadow-field md:p-5">
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-brasil-green">{nextMatch.group}</p>
                 <h2 className="mt-1 text-2xl font-black text-brasil-navy">
-                  {nextMatch.homeTeam} x {nextMatch.awayTeam}
+                  {countryWithFlag(nextMatch.homeTeam)} x {countryWithFlag(nextMatch.awayTeam)}
                 </h2>
                 <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600">
                   <p>{nextMatch.dateLabel}, {nextMatch.timeLabel}</p>
