@@ -11,7 +11,7 @@ type AuthUser = {
   telefone: string;
 };
 
-type AuthMode = "login" | "register";
+type AuthMode = "login" | "register" | "reset";
 
 type AuthGateProps = {
   redirectTo?: string;
@@ -41,6 +41,7 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
   const [checkingSession, setCheckingSession] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"error" | "success">("error");
 
   useEffect(() => {
     fetch("/api/auth/me", { cache: "no-store" })
@@ -53,6 +54,7 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
   function openAuth(nextMode: AuthMode) {
     setMode(nextMode);
     setMessage("");
+    setMessageTone("error");
     setOpen(true);
   }
 
@@ -93,9 +95,37 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
     event.preventDefault();
     setLoading(true);
     setMessage("");
+    setMessageTone("error");
 
     const formData = new FormData(event.currentTarget);
     const body = Object.fromEntries(formData.entries());
+
+    if (mode === "reset") {
+      try {
+        const response = await fetch("/api/auth/reset-password", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body)
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(payload.error || "Não foi possível redefinir a senha.");
+        }
+
+        setMode("login");
+        setMessageTone("success");
+        setMessage(payload.message || "Senha alterada com sucesso. Faça login novamente.");
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Não foi possível redefinir a senha.");
+      } finally {
+        setLoading(false);
+      }
+
+      return;
+    }
 
     if (mode === "register") {
       const origemRef = getStoredReferral();
@@ -183,10 +213,10 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
             </button>
             <div className="mb-5">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-brasil-green">
-                {mode === "login" ? "Entrar" : "Criar cadastro"}
+                {mode === "login" ? "Entrar" : mode === "register" ? "Criar cadastro" : "Redefinir senha"}
               </p>
               <h2 className="text-2xl font-black text-brasil-navy">
-                {mode === "login" ? "Acesse sua conta" : "Entre no bolão"}
+                {mode === "login" ? "Acesse sua conta" : mode === "register" ? "Entre no bolão" : "Recupere seu acesso"}
               </h2>
             </div>
 
@@ -197,10 +227,27 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
                   <input name="cpf" required placeholder="CPF" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
                 </>
               ) : null}
-              <input name="telefone" required placeholder="Telefone / WhatsApp" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
-              <input name="senha" required type="password" placeholder="Senha" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
+              {mode === "reset" ? (
+                <>
+                  <input name="telefone" required placeholder="Telefone cadastrado" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
+                  <input name="cpf" required placeholder="CPF cadastrado" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
+                  <input name="novaSenha" required type="password" placeholder="Nova senha" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
+                  <input name="confirmarSenha" required type="password" placeholder="Confirmar nova senha" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
+                </>
+              ) : (
+                <>
+                  <input name="telefone" required placeholder="Telefone / WhatsApp" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
+                  <input name="senha" required type="password" placeholder="Senha" className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green" />
+                </>
+              )}
 
-              {message ? <p className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{message}</p> : null}
+              {message ? (
+                <p className={`rounded-lg p-3 text-sm font-bold ${
+                  messageTone === "success" ? "bg-brasil-green/10 text-brasil-green" : "bg-red-50 text-red-700"
+                }`}>
+                  {message}
+                </p>
+              ) : null}
 
               <button
                 type="submit"
@@ -208,8 +255,17 @@ export function AuthGate({ redirectTo, children = "Entrar", variant = "cta" }: A
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-brasil-green px-5 font-black text-white shadow-field disabled:opacity-65"
               >
                 {mode === "login" ? <LogIn size={18} aria-hidden /> : <UserPlus size={18} aria-hidden />}
-                {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar cadastro"}
+                {loading ? "Aguarde..." : mode === "login" ? "Entrar" : mode === "register" ? "Criar cadastro" : "Alterar senha"}
               </button>
+              {mode === "login" ? (
+                <button
+                  type="button"
+                  onClick={() => openAuth("reset")}
+                  className="text-center text-sm font-black text-brasil-blue"
+                >
+                  Esqueci minha senha
+                </button>
+              ) : null}
               <a
                 href={SUPPORT_WHATSAPP_URL}
                 target="_blank"
