@@ -4,13 +4,15 @@ import { currency } from "@/lib/utils";
 import type { LiveMatch } from "@/data/supabase-live";
 
 export function MatchCard({ match }: { match: LiveMatch }) {
-  const isActive = Boolean(match.id) && match.status !== "encerrado";
+  const isActive = Boolean(match.id) && match.status === "aberto";
   const publicEntryValue = match.entryValue + match.operationalFee;
   const statusLabel = match.status === "encerrado"
     ? "Encerrado"
     : match.status === "em_andamento"
       ? "Palpites em breve"
-      : "Palpites abertos";
+      : match.status === "aguardando"
+        ? "Aguardando abertura da rodada"
+        : "Palpites abertos";
 
   return (
     <article className="rounded-lg bg-white p-4 shadow-field">

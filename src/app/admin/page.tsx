@@ -7,6 +7,7 @@ import { CloseRoundForm } from "@/components/close-round-form";
 import { RankingScoreForm } from "@/components/ranking-score-form";
 import { RoundExpensesManager } from "@/components/round-expenses-manager";
 import { RoundInvitesManager } from "@/components/round-invites-manager";
+import { AdminGamesManager } from "@/components/admin-games-manager";
 import { currency } from "@/lib/utils";
 import { getAdminStats, type AdminBetFilter } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
@@ -118,6 +119,10 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
             <p>Pix pendentes: {stats.paymentsPending}</p>
           </div>
         </div>
+      </section>
+      <section className="mt-10">
+        <SectionTitle eyebrow="Rodadas" title="Gerenciar Jogos" />
+        <AdminGamesManager games={stats.matches} />
       </section>
       <section className="mt-10">
         <SectionTitle eyebrow="Resultado geral" title="Financeiro" />
@@ -322,24 +327,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
           ) : null}
         </div>
       </section>
-      <section className="mt-10 grid gap-8 md:grid-cols-2">
-        <div>
-          <SectionTitle eyebrow="Rodadas" title="Jogos cadastrados" />
-          <div className="grid gap-3">
-            {stats.matches.map((match) => (
-              <div key={match.id} className="rounded-lg bg-white p-4 shadow-field">
-                <p className="font-black text-brasil-navy">{match.homeTeam} x {match.awayTeam}</p>
-                <p className="text-sm font-semibold text-slate-600">{match.dateLabel}, {match.timeLabel}</p>
-                <p className="mt-2 font-black text-brasil-green">Entrada: {currency(match.entryValue)}</p>
-              </div>
-            ))}
-            {stats.matches.length === 0 ? (
-              <div className="rounded-lg bg-white p-4 font-semibold text-slate-600 shadow-field">
-                Nenhum jogo cadastrado no Supabase.
-              </div>
-            ) : null}
-          </div>
-        </div>
+      <section className="mt-10">
         <div>
           <SectionTitle eyebrow="Acumulado" title="Atualizacao manual" />
           <div className="mb-6 rounded-lg bg-white p-4 shadow-field">

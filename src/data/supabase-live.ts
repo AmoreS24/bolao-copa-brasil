@@ -9,7 +9,7 @@ export type LiveMatch = {
   id: string;
   homeTeam: string;
   awayTeam: string;
-  status: "aberto" | "em_andamento" | "encerrado";
+  status: "aguardando" | "aberto" | "em_andamento" | "encerrado";
   correspondenceDate: string;
   startsAt: string;
   bettingClosesAt: string;
@@ -206,6 +206,7 @@ const DEFAULT_COMPETITION = "Copa do Mundo 2026";
 const GAME_COLUMNS = "id,time_da_casa,time_visitante,data_de_correspondencia,apostas_encerram_em";
 const PAID_PAYMENT_STATUSES = ["paid", "confirmed", "received", "PAYMENT_RECEIVED"];
 const PENDING_PAYMENT_STATUSES = ["pending", "pending_payment", "aguardando_pagamento"];
+const CONFIRMED_BET_STATUSES = ["confirmed", "paid", "received", "PAYMENT_RECEIVED", "vencedor"];
 
 function getSupabaseServer() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -382,7 +383,7 @@ function matchFromRow(row: DbRow, confirmedGuesses: number, confirmedRevenue = 0
     id: stringValue(row, ["id", "slug"], slugFromTeams(homeTeam, awayTeam)),
     homeTeam,
     awayTeam,
-    status: status === "em_andamento" || status === "encerrado" ? status : "aberto",
+    status: status === "aguardando" || status === "em_andamento" || status === "encerrado" ? status : "aberto",
     correspondenceDate: startsAt,
     startsAt,
     bettingClosesAt,
@@ -429,7 +430,7 @@ export async function getConfirmedGuessesCount(matchId?: string) {
   let query = supabase
     .from("apostas")
     .select("id", { count: "exact", head: true })
-    .eq("status", "confirmed");
+    .in("status", CONFIRMED_BET_STATUSES);
 
   if (matchId) {
     query = query.eq("jogo_id", matchId);
@@ -511,7 +512,10 @@ export async function getUpcomingMatches() {
 
 export async function getNextMatch() {
   const matches = await getUpcomingMatches();
-  return matches.find((match) => match.status !== "encerrado") ?? matches[0] ?? null;
+  return matches.find((match) => match.status === "aberto")
+    ?? matches.find((match) => match.status !== "encerrado")
+    ?? matches[0]
+    ?? null;
 }
 
 export async function getMatchById(id: string) {

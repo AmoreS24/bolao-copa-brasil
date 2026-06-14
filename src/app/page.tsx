@@ -10,6 +10,9 @@ import { AuthGate } from "@/components/auth-gate";
 
 export const dynamic = "force-dynamic";
 
+const CURRENT_ROUND_BASE_ENTRY = 10;
+const MINIMUM_CURRENT_ROUND_PRIZE = 200;
+
 export default async function Home() {
   const [match, upcomingBrazilMatches, rankingPlayers, closedRounds] = await Promise.all([
     getNextMatch(),
@@ -32,6 +35,16 @@ export default async function Home() {
   }
 
   const publicEntryValue = match.entryValue + match.operationalFee;
+  const currentRoundConfirmedGuesses = match.status === "aberto" ? match.confirmedGuesses : 0;
+  const currentRoundPrize = Math.max(
+    MINIMUM_CURRENT_ROUND_PRIZE,
+    currentRoundConfirmedGuesses * CURRENT_ROUND_BASE_ENTRY * 0.6
+  );
+  const socialProofText = currentRoundConfirmedGuesses === 0
+    ? "🔥 Seja o primeiro a confirmar seu palpite nesta rodada"
+    : currentRoundConfirmedGuesses === 1
+      ? "🔥 1 palpite confirmado nesta rodada"
+      : `🔥 ${currentRoundConfirmedGuesses} palpites confirmados nesta rodada`;
   const latestClosedRound = closedRounds[0];
   const latestWinner = latestClosedRound?.winners.find(
     (winner) => winner.name.trim().toLowerCase() === "lidiane santos barreto"
@@ -87,8 +100,9 @@ export default async function Home() {
                 <p className="mt-1 text-xl font-black">{match.dateLabel}</p>
               </div>
               <div className="rounded-lg border border-brasil-yellow/45 bg-black/32 p-3 text-white shadow-field backdrop-blur">
-                <p className="text-xs font-black uppercase text-brasil-yellow">🏆 Prêmio garantido</p>
-                <p className="mt-1 text-xl font-black">{currency(match.exactPool)}</p>
+                <p className="text-xs font-black uppercase text-brasil-yellow">🏆 Prêmio atual</p>
+                <p className="mt-1 text-xl font-black">{currency(currentRoundPrize)}</p>
+                <p className="mt-1 text-[11px] font-bold text-white/80">mínimo garantido de R$ 200,00</p>
               </div>
               <div className="rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur">
                 <p className="text-xs font-black uppercase text-brasil-yellow">💰 Cada palpite</p>
@@ -106,6 +120,11 @@ export default async function Home() {
               <p className="mx-auto mt-2 max-w-sm text-center text-xs font-bold text-white/82">
                 Status: {bettingStatusLabel}
               </p>
+              {match.status === "aberto" ? (
+                <p className="mx-auto mt-2 max-w-lg rounded-full border border-brasil-yellow/40 bg-black/24 px-4 py-2 text-sm font-black text-brasil-yellow shadow-field backdrop-blur">
+                  {socialProofText}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -188,12 +207,12 @@ export default async function Home() {
         ) : null}
 
         <section className="mt-6 grid gap-4 md:grid-cols-3">
-          <StatCard icon={Trophy} label="Prêmio estimado da rodada" value={currency(match.exactPool)} tone="yellow" />
+          <StatCard icon={Trophy} label="Prêmio atual" value={currency(currentRoundPrize)} tone="yellow" />
           <StatCard icon={Wallet} label="Cada palpite" value={currency(publicEntryValue)} />
-          <StatCard icon={Users} label="Palpites confirmados" value={`${match.confirmedGuesses}`} tone="blue" />
+          <StatCard icon={Users} label="Palpites nesta rodada" value={`${currentRoundConfirmedGuesses}`} tone="blue" />
         </section>
         <p className="mt-3 rounded-lg bg-white p-4 text-sm font-black text-brasil-navy shadow-field">
-          Prêmio garantido: R$ 200,00 + 60% do valor arrecadado.
+          Prêmio atual calculado apenas pela rodada aberta, com mínimo garantido de R$ 200,00.
         </p>
 
         <section className="mt-10 grid gap-8 md:grid-cols-[0.95fr_1.05fr] md:items-start">

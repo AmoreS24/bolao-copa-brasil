@@ -18,6 +18,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
 
   const estimatedPrize = match.exactPool;
   const publicEntryValue = match.entryValue + match.operationalFee;
+  const canReceiveGuesses = match.status === "aberto";
 
   return (
     <PageShell>
@@ -50,12 +51,23 @@ export default async function GamePage({ params }: { params: { id: string } }) {
       <section className="mt-8 grid gap-8 md:grid-cols-[1fr_0.85fr]">
         <div className="rounded-lg bg-white p-5 shadow-field md:p-7">
           <SectionTitle eyebrow="Placar exato" title="Escolha seu(s) placar(es)" />
-          {match.status === "encerrado" ? (
+          {!canReceiveGuesses ? (
             <div className="rounded-lg bg-brasil-light p-5">
-              <p className="font-black text-brasil-navy">Rodada encerrada.</p>
-              <p className="mt-2 font-semibold text-slate-700">
-                Resultado oficial: {match.hasFinalResult ? `${match.homeTeam} ${match.finalHomeScore} x ${match.finalAwayScore} ${match.awayTeam}` : "aguardando apuração"}.
-              </p>
+              {match.status === "encerrado" ? (
+                <>
+                  <p className="font-black text-brasil-navy">Rodada encerrada.</p>
+                  <p className="mt-2 font-semibold text-slate-700">
+                    Resultado oficial: {match.hasFinalResult ? `${match.homeTeam} ${match.finalHomeScore} x ${match.finalAwayScore} ${match.awayTeam}` : "aguardando apuração"}.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-black text-brasil-navy">Palpites em breve.</p>
+                  <p className="mt-2 font-semibold text-slate-700">
+                    Esta rodada ainda não foi aberta para participação.
+                  </p>
+                </>
+              )}
             </div>
           ) : user ? (
             <PredictionBuilder
