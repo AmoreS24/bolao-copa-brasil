@@ -125,6 +125,21 @@ export type AdminAffiliateRow = {
   paidTotal: number;
 };
 
+export type AdminOriginGameMetrics = {
+  confirmedPayments: number;
+  paidTotal: number;
+};
+
+export type AdminOriginAnalyticsRow = {
+  originRef: string;
+  signups: number;
+  confirmedPayments: number;
+  paidTotal: number;
+  conversionRate: number;
+  averageTicket: number;
+  byGame: Record<string, AdminOriginGameMetrics>;
+};
+
 export type AdminRankingMatch = {
   id: string;
   label: string;
@@ -162,6 +177,25 @@ export type AdminRoundExpense = {
   description: string;
   value: number;
   createdAtLabel: string;
+};
+
+export type AdminRoundInviteParticipant = {
+  id: string;
+  name: string;
+  phone: string;
+  lastMatch: string;
+  joinedCurrentRound: boolean;
+};
+
+export type AdminRoundInviteTools = {
+  currentMatch: {
+    id: string;
+    homeTeam: string;
+    awayTeam: string;
+    label: string;
+    publicUrl: string;
+  } | null;
+  participants: AdminRoundInviteParticipant[];
 };
 
 const ENTRY_VALUE = 10;
@@ -641,7 +675,12 @@ export async function getAdminStats() {
       paidTotal: 0,
       bets: [] as AdminBetRow[],
       topAffiliates: [] as AdminAffiliateRow[],
+      originAnalytics: [] as AdminOriginAnalyticsRow[],
       rankingMatches: [] as AdminRankingMatch[],
+      inviteTools: {
+        currentMatch: null,
+        participants: []
+      } as AdminRoundInviteTools,
       financial: {
         totalCollected: 0,
         prizesPaid: 0,
@@ -672,7 +711,7 @@ export async function getAdminStats() {
     supabase.from("pagamentos").select("id,valor_total,origem_ref").in("status", PAID_PAYMENT_STATUSES),
     supabase.from("perfis").select("origem_ref"),
     supabase.from("jogos").select("id,time_da_casa,time_visitante,status_jogo,data_de_correspondencia"),
-    supabase.from("apostas").select("id,jogo_id,pagamento_id,status").eq("status", "confirmed"),
+    supabase.from("apostas").select("id,jogo_id,pagamento_id,perfil_id,status").eq("status", "confirmed"),
     supabase.from("rodada_vencedores").select("id,jogo_id,valor_premio"),
     supabase.from("rodada_despesas").select("id,jogo_id,descricao,valor,criado_em").order("criado_em", { ascending: false })
   ]);
@@ -685,6 +724,7 @@ export async function getAdminStats() {
     0
   );
   const affiliateStats = new Map<string, AdminAffiliateRow>();
+  const originStats = new Map<string, AdminOriginAnalyticsRow>();
 
   for (const profile of (referralProfiles ?? []) as DbRow[]) {
     const originRef = stringValue(profile, ["origem_ref"]);
@@ -702,6 +742,19 @@ export async function getAdminStats() {
 
     current.signups += 1;
     affiliateStats.set(originRef, current);
+
+    const currentOrigin = originStats.get(originRef) ?? {
+      originRef,
+      signups: 0,
+      confirmedPayments: 0,
+      paidTotal: 0,
+      conversionRate: 0,
+      averageTicket: 0,
+      byGame: {}
+    };
+
+    currentOrigin.signups += 1;
+    originStats.set(originRef, currentOrigin);
   }
 
   for (const payment of confirmedPaymentsRows) {
@@ -721,6 +774,20 @@ export async function getAdminStats() {
     current.confirmedPayments += 1;
     current.paidTotal += numberValue(payment, ["valor_total"], 0);
     affiliateStats.set(originRef, current);
+
+    const currentOrigin = originStats.get(originRef) ?? {
+      originRef,
+      signups: 0,
+      confirmedPayments: 0,
+      paidTotal: 0,
+      conversionRate: 0,
+      averageTicket: 0,
+      byGame: {}
+    };
+
+    currentOrigin.confirmedPayments += 1;
+    currentOrigin.paidTotal += numberValue(payment, ["valor_total"], 0);
+    originStats.set(originRef, currentOrigin);
   }
 
   const topAffiliates = Array.from(affiliateStats.values())
@@ -728,6 +795,56 @@ export async function getAdminStats() {
     .slice(0, 10);
   const paidPaymentsById = new Map(confirmedPaymentsRows.map((payment) => [stringValue(payment, ["id"]), payment]));
   const allConfirmedBets = (allConfirmedBetsData ?? []) as DbRow[];
+  const paymentGameIds = new Map<string, Set<string>>();
+
+  for (const bet of allConfirmedBets) {
+    const paymentId = stringValue(bet, ["pagamento_id"]);
+    const gameId = stringValue(bet, ["jogo_id"]);
+
+    if (!paymentId || !gameId) {
+      continue;
+    }
+
+    const current = paymentGameIds.get(paymentId) ?? new Set<string>();
+    current.add(gameId);
+    paymentGameIds.set(paymentId, current);
+  }
+
+  for (const payment of confirmedPaymentsRows) {
+    const originRef = stringValue(payment, ["origem_ref"]);
+
+    if (!originRef) {
+      continue;
+    }
+
+    const currentOrigin = originStats.get(originRef);
+
+    if (!currentOrigin) {
+      continue;
+    }
+
+    const paymentId = stringValue(payment, ["id"]);
+    const gameIds = paymentGameIds.get(paymentId) ?? new Set<string>();
+
+    for (const gameId of Array.from(gameIds)) {
+      const currentGame = currentOrigin.byGame[gameId] ?? {
+        confirmedPayments: 0,
+        paidTotal: 0
+      };
+
+      currentGame.confirmedPayments += 1;
+      currentGame.paidTotal += numberValue(payment, ["valor_total"], 0);
+      currentOrigin.byGame[gameId] = currentGame;
+    }
+  }
+
+  const originAnalytics = Array.from(originStats.values())
+    .map((origin) => ({
+      ...origin,
+      conversionRate: origin.signups > 0 ? Math.round((origin.confirmedPayments / origin.signups) * 100) : 0,
+      averageTicket: origin.confirmedPayments > 0 ? origin.paidTotal / origin.confirmedPayments : 0
+    }))
+    .sort((a, b) => b.paidTotal - a.paidTotal || b.confirmedPayments - a.confirmedPayments || b.signups - a.signups);
   const allWinners = (allWinnersData ?? []) as DbRow[];
   const allExpenses = expensesResult.error ? [] : (expensesResult.data ?? []) as DbRow[];
   const prizePaidTotal = allWinners.reduce((total, winner) => total + numberValue(winner, ["valor_premio"], 0), 0);
@@ -801,6 +918,71 @@ export async function getAdminStats() {
       id: match.id,
       label: `${match.homeTeam} x ${match.awayTeam} - ${match.officialResult || match.dateLabel}`
     }));
+  const currentInviteMatch = matches.find((match) => match.status === "aberto") ?? null;
+  const currentInviteMatchId = currentInviteMatch?.id ?? "";
+  const previousBets = currentInviteMatchId
+    ? allConfirmedBets.filter((bet) => stringValue(bet, ["jogo_id"]) !== currentInviteMatchId)
+    : allConfirmedBets;
+  const inviteProfileIds = Array.from(new Set(previousBets.map((bet) => stringValue(bet, ["perfil_id"])).filter(Boolean)));
+  const [{ data: inviteProfilesData }, { data: inviteGamesData }] = await Promise.all([
+    inviteProfileIds.length
+      ? supabase.from("perfis").select("id,nome,telefone").in("id", inviteProfileIds)
+      : Promise.resolve({ data: [] }),
+    previousBets.length
+      ? supabase.from("jogos").select("id,time_da_casa,time_visitante,data_de_correspondencia").in(
+        "id",
+        Array.from(new Set(previousBets.map((bet) => stringValue(bet, ["jogo_id"])).filter(Boolean)))
+      )
+      : Promise.resolve({ data: [] })
+  ]);
+  const inviteProfilesById = new Map(((inviteProfilesData ?? []) as DbRow[]).map((profile) => [stringValue(profile, ["id"]), profile]));
+  const inviteGamesById = new Map(((inviteGamesData ?? []) as DbRow[]).map((game) => [stringValue(game, ["id"]), game]));
+  const currentRoundProfileIds = new Set(
+    allConfirmedBets
+      .filter((bet) => stringValue(bet, ["jogo_id"]) === currentInviteMatchId)
+      .map((bet) => stringValue(bet, ["perfil_id"]))
+      .filter(Boolean)
+  );
+  const latestBetByProfile = new Map<string, DbRow>();
+
+  for (const bet of previousBets) {
+    const profileId = stringValue(bet, ["perfil_id"]);
+    const current = latestBetByProfile.get(profileId);
+    const currentGame = current ? inviteGamesById.get(stringValue(current, ["jogo_id"])) ?? {} : {};
+    const nextGame = inviteGamesById.get(stringValue(bet, ["jogo_id"])) ?? {};
+    const currentDate = new Date(stringValue(currentGame, ["data_de_correspondencia"], "")).getTime();
+    const nextDate = new Date(stringValue(nextGame, ["data_de_correspondencia"], "")).getTime();
+
+    if (!current || nextDate >= currentDate) {
+      latestBetByProfile.set(profileId, bet);
+    }
+  }
+
+  const inviteTools: AdminRoundInviteTools = {
+    currentMatch: currentInviteMatch
+      ? {
+        id: currentInviteMatch.id,
+        homeTeam: currentInviteMatch.homeTeam,
+        awayTeam: currentInviteMatch.awayTeam,
+        label: `${currentInviteMatch.homeTeam} x ${currentInviteMatch.awayTeam}`,
+        publicUrl: `https://bolao-copa-brasil.vercel.app/jogos/${currentInviteMatch.id}`
+      }
+      : null,
+    participants: Array.from(latestBetByProfile.entries())
+      .map(([profileId, bet]) => {
+        const profile = inviteProfilesById.get(profileId) ?? {};
+        const lastGame = inviteGamesById.get(stringValue(bet, ["jogo_id"])) ?? {};
+
+        return {
+          id: profileId,
+          name: stringValue(profile, ["nome"], "Participante"),
+          phone: stringValue(profile, ["telefone"], ""),
+          lastMatch: `${stringValue(lastGame, ["time_da_casa"], "Brasil")} x ${stringValue(lastGame, ["time_visitante"], "Adversário")}`,
+          joinedCurrentRound: currentRoundProfileIds.has(profileId)
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name))
+  };
 
   const { data: betsData } = await supabase
     .from("apostas")
@@ -866,7 +1048,9 @@ export async function getAdminStats() {
     paidTotal,
     bets,
     topAffiliates,
+    originAnalytics,
     rankingMatches,
+    inviteTools,
     financial
   };
 }

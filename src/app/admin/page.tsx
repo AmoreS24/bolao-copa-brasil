@@ -6,6 +6,7 @@ import { ManualPaymentConfirmButton } from "@/components/manual-payment-confirm-
 import { CloseRoundForm } from "@/components/close-round-form";
 import { RankingScoreForm } from "@/components/ranking-score-form";
 import { RoundExpensesManager } from "@/components/round-expenses-manager";
+import { RoundInvitesManager } from "@/components/round-invites-manager";
 import { currency } from "@/lib/utils";
 import { getAdminStats, type AdminBetFilter } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
@@ -31,7 +32,11 @@ function normalizeFilter(value?: string): AdminBetFilter {
   return value === "confirmados" || value === "pendentes" ? value : "todos";
 }
 
-export default async function AdminPage({ searchParams }: { searchParams?: { filtro?: string } }) {
+function normalizeOriginGameFilter(value?: string) {
+  return value?.trim() || "todos";
+}
+
+export default async function AdminPage({ searchParams }: { searchParams?: { filtro?: string; origemJogo?: string } }) {
   const user = getCurrentUser();
   const isMaster = isMasterUser(user);
 
@@ -51,6 +56,27 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
   const filteredBets = activeFilter === "todos"
     ? stats.bets
     : stats.bets.filter((bet) => bet.filterStatus === activeFilter);
+  const activeOriginGame = normalizeOriginGameFilter(searchParams?.origemJogo);
+  const originGameOptions = stats.matches.map((match) => ({
+    id: match.id,
+    label: `${match.homeTeam} x ${match.awayTeam}`
+  }));
+  const originRows = stats.originAnalytics
+    .map((origin) => {
+      const gameMetrics = activeOriginGame === "todos"
+        ? { confirmedPayments: origin.confirmedPayments, paidTotal: origin.paidTotal }
+        : origin.byGame[activeOriginGame] ?? { confirmedPayments: 0, paidTotal: 0 };
+
+      return {
+        ...origin,
+        shownConfirmedPayments: gameMetrics.confirmedPayments,
+        shownPaidTotal: gameMetrics.paidTotal,
+        shownConversionRate: origin.signups > 0 ? Math.round((gameMetrics.confirmedPayments / origin.signups) * 100) : 0,
+        shownAverageTicket: gameMetrics.confirmedPayments > 0 ? gameMetrics.paidTotal / gameMetrics.confirmedPayments : 0
+      };
+    })
+    .sort((a, b) => b.shownPaidTotal - a.shownPaidTotal || b.shownConfirmedPayments - a.shownConfirmedPayments || b.signups - a.signups);
+  const bestOrigin = originRows.find((origin) => origin.shownPaidTotal > 0 || origin.shownConfirmedPayments > 0) ?? originRows[0];
   const closableMatches = stats.matches
     .filter((match) => match.status === "aberto" || match.status === "em_andamento")
     .map((match) => ({
@@ -156,32 +182,72 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
         <RankingScoreForm matches={stats.rankingMatches} />
       </section>
       <section className="mt-10">
-        <SectionTitle eyebrow="Divulgação" title="Top Afiliados" />
+        <SectionTitle eyebrow="Reengajamento" title="Convites da Rodada" />
+        <RoundInvitesManager inviteTools={stats.inviteTools} />
+      </section>
+      <section className="mt-10">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <SectionTitle eyebrow="Afiliados Premium" title="Origem dos Participantes" />
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/admin"
+              className={`inline-flex min-h-10 items-center rounded-full px-4 text-sm font-black shadow-field ${
+                activeOriginGame === "todos" ? "bg-brasil-green text-white" : "bg-white text-brasil-navy"
+              }`}
+            >
+              Todos
+            </Link>
+            {originGameOptions.map((game) => (
+              <Link
+                key={game.id}
+                href={`/admin?origemJogo=${game.id}`}
+                className={`inline-flex min-h-10 items-center rounded-full px-4 text-sm font-black shadow-field ${
+                  activeOriginGame === game.id ? "bg-brasil-green text-white" : "bg-white text-brasil-navy"
+                }`}
+              >
+                {game.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+        {bestOrigin ? (
+          <div className="mb-4 rounded-lg bg-brasil-navy p-4 text-white shadow-field">
+            <p className="text-sm font-black uppercase text-brasil-yellow">Melhor origem da rodada</p>
+            <p className="mt-1 text-2xl font-black">{bestOrigin.originRef}</p>
+            <p className="mt-1 font-semibold text-white/85">
+              {bestOrigin.shownConfirmedPayments} pagamentos confirmados | {currency(bestOrigin.shownPaidTotal)}
+            </p>
+          </div>
+        ) : null}
         <div className="overflow-hidden rounded-lg bg-white shadow-field">
           <div className="overflow-x-auto">
-            <table className="min-w-[680px] w-full text-left text-sm">
+            <table className="min-w-[920px] w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs font-black uppercase text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Origem/ref</th>
-                  <th className="px-4 py-3">Cadastros</th>
+                  <th className="px-4 py-3">Cadastros gerados</th>
                   <th className="px-4 py-3">Pagamentos confirmados</th>
                   <th className="px-4 py-3">Valor arrecadado</th>
+                  <th className="px-4 py-3">Conversão</th>
+                  <th className="px-4 py-3">Ticket médio</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {stats.topAffiliates.map((affiliate) => (
-                  <tr key={affiliate.originRef} className="font-semibold text-slate-700">
-                    <td className="px-4 py-3 font-black text-brasil-navy">{affiliate.originRef}</td>
-                    <td className="px-4 py-3">{affiliate.signups}</td>
-                    <td className="px-4 py-3">{affiliate.confirmedPayments}</td>
-                    <td className="px-4 py-3 font-black text-brasil-green">{currency(affiliate.paidTotal)}</td>
+                {originRows.map((origin) => (
+                  <tr key={origin.originRef} className="font-semibold text-slate-700">
+                    <td className="px-4 py-3 font-black text-brasil-navy">{origin.originRef}</td>
+                    <td className="px-4 py-3">{origin.signups}</td>
+                    <td className="px-4 py-3">{origin.shownConfirmedPayments}</td>
+                    <td className="px-4 py-3 font-black text-brasil-green">{currency(origin.shownPaidTotal)}</td>
+                    <td className="px-4 py-3">{origin.shownConversionRate}%</td>
+                    <td className="px-4 py-3">{currency(origin.shownAverageTicket)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {stats.topAffiliates.length === 0 ? (
-            <div className="p-5 font-semibold text-slate-600">Nenhuma origem/ref com cadastro ou pagamento confirmado.</div>
+          {originRows.length === 0 ? (
+            <div className="p-5 font-semibold text-slate-600">Nenhuma origem/ref encontrada.</div>
           ) : null}
         </div>
       </section>
