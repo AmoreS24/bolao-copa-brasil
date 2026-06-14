@@ -130,6 +130,28 @@ export type AdminRankingMatch = {
   label: string;
 };
 
+export type AdminFinancialRoundRow = {
+  id: string;
+  match: string;
+  status: string;
+  confirmedParticipations: number;
+  collected: number;
+  prizePaid: number;
+  balance: number;
+  winners: number;
+};
+
+export type AdminFinancialOverview = {
+  totalCollected: number;
+  prizesPaid: number;
+  operationalBalance: number;
+  closedRounds: number;
+  openRounds: number;
+  confirmedParticipations: number;
+  averageTicket: number;
+  rounds: AdminFinancialRoundRow[];
+};
+
 const ENTRY_VALUE = 10;
 const OPERATIONAL_FEE = 1.99;
 const MINIMUM_DISPLAY_PRIZE = 200;
@@ -607,15 +629,36 @@ export async function getAdminStats() {
       paidTotal: 0,
       bets: [] as AdminBetRow[],
       topAffiliates: [] as AdminAffiliateRow[],
-      rankingMatches: [] as AdminRankingMatch[]
+      rankingMatches: [] as AdminRankingMatch[],
+      financial: {
+        totalCollected: 0,
+        prizesPaid: 0,
+        operationalBalance: 0,
+        closedRounds: 0,
+        openRounds: 0,
+        confirmedParticipations: 0,
+        averageTicket: 0,
+        rounds: []
+      } as AdminFinancialOverview
     };
   }
 
-  const [{ count: users }, { count: paymentsPending }, { data: paidPayments }, { data: referralProfiles }] = await Promise.all([
+  const [
+    { count: users },
+    { count: paymentsPending },
+    { data: paidPayments },
+    { data: referralProfiles },
+    { data: allGamesData },
+    { data: allConfirmedBetsData },
+    { data: allWinnersData }
+  ] = await Promise.all([
     supabase.from("perfis").select("id", { count: "exact", head: true }),
     supabase.from("pagamentos").select("id", { count: "exact", head: true }).in("status", PENDING_PAYMENT_STATUSES),
     supabase.from("pagamentos").select("id,valor_total,origem_ref").in("status", PAID_PAYMENT_STATUSES),
-    supabase.from("perfis").select("origem_ref")
+    supabase.from("perfis").select("origem_ref"),
+    supabase.from("jogos").select("id,time_da_casa,time_visitante,status_jogo,data_de_correspondencia"),
+    supabase.from("apostas").select("id,jogo_id,pagamento_id,status").eq("status", "confirmed"),
+    supabase.from("rodada_vencedores").select("id,jogo_id,valor_premio")
   ]);
 
   const usersCount = users ?? 0;
@@ -667,6 +710,49 @@ export async function getAdminStats() {
   const topAffiliates = Array.from(affiliateStats.values())
     .sort((a, b) => b.paidTotal - a.paidTotal || b.confirmedPayments - a.confirmedPayments || b.signups - a.signups)
     .slice(0, 10);
+  const paidPaymentsById = new Map(confirmedPaymentsRows.map((payment) => [stringValue(payment, ["id"]), payment]));
+  const allConfirmedBets = (allConfirmedBetsData ?? []) as DbRow[];
+  const allWinners = (allWinnersData ?? []) as DbRow[];
+  const prizePaidTotal = allWinners.reduce((total, winner) => total + numberValue(winner, ["valor_premio"], 0), 0);
+  const gamesRows = (allGamesData ?? []) as DbRow[];
+  const financialRounds = gamesRows
+    .map((game): AdminFinancialRoundRow => {
+      const gameId = stringValue(game, ["id"]);
+      const gameBets = allConfirmedBets.filter((bet) => stringValue(bet, ["jogo_id"]) === gameId);
+      const paymentIds = Array.from(new Set(gameBets.map((bet) => stringValue(bet, ["pagamento_id"])).filter(Boolean)));
+      const collected = paymentIds.reduce((total, paymentId) => {
+        const payment = paidPaymentsById.get(paymentId);
+        return total + (payment ? numberValue(payment, ["valor_total"], 0) : 0);
+      }, 0);
+      const gameWinners = allWinners.filter((winner) => stringValue(winner, ["jogo_id"]) === gameId);
+      const prizePaid = gameWinners.reduce((total, winner) => total + numberValue(winner, ["valor_premio"], 0), 0);
+
+      return {
+        id: gameId,
+        match: `${stringValue(game, ["time_da_casa"], "Brasil")} x ${stringValue(game, ["time_visitante"], "Adversário")}`,
+        status: stringValue(game, ["status_jogo"], "aberto"),
+        confirmedParticipations: gameBets.length,
+        collected,
+        prizePaid,
+        balance: collected - prizePaid,
+        winners: gameWinners.length
+      };
+    })
+    .sort((a, b) => {
+      const gameA = gamesRows.find((game) => stringValue(game, ["id"]) === a.id) ?? {};
+      const gameB = gamesRows.find((game) => stringValue(game, ["id"]) === b.id) ?? {};
+      return new Date(stringValue(gameB, ["data_de_correspondencia"], "")).getTime() - new Date(stringValue(gameA, ["data_de_correspondencia"], "")).getTime();
+    });
+  const financial: AdminFinancialOverview = {
+    totalCollected: paidTotal,
+    prizesPaid: prizePaidTotal,
+    operationalBalance: paidTotal - prizePaidTotal,
+    closedRounds: gamesRows.filter((game) => stringValue(game, ["status_jogo"]) === "encerrado").length,
+    openRounds: gamesRows.filter((game) => stringValue(game, ["status_jogo"], "aberto") === "aberto").length,
+    confirmedParticipations: allConfirmedBets.length,
+    averageTicket: paymentsConfirmed > 0 ? paidTotal / paymentsConfirmed : 0,
+    rounds: financialRounds
+  };
   const rankingMatches = matches
     .filter((match) => match.hasFinalResult)
     .map((match): AdminRankingMatch => ({
@@ -738,7 +824,8 @@ export async function getAdminStats() {
     paidTotal,
     bets,
     topAffiliates,
-    rankingMatches
+    rankingMatches,
+    financial
   };
 }
 
