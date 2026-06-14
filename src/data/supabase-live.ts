@@ -137,6 +137,7 @@ export type AdminFinancialRoundRow = {
   confirmedParticipations: number;
   collected: number;
   prizePaid: number;
+  expenses: number;
   balance: number;
   winners: number;
 };
@@ -144,12 +145,23 @@ export type AdminFinancialRoundRow = {
 export type AdminFinancialOverview = {
   totalCollected: number;
   prizesPaid: number;
+  expensesTotal: number;
   operationalBalance: number;
   closedRounds: number;
   openRounds: number;
   confirmedParticipations: number;
   averageTicket: number;
   rounds: AdminFinancialRoundRow[];
+  expenses: AdminRoundExpense[];
+};
+
+export type AdminRoundExpense = {
+  id: string;
+  gameId: string;
+  match: string;
+  description: string;
+  value: number;
+  createdAtLabel: string;
 };
 
 const ENTRY_VALUE = 10;
@@ -633,12 +645,14 @@ export async function getAdminStats() {
       financial: {
         totalCollected: 0,
         prizesPaid: 0,
+        expensesTotal: 0,
         operationalBalance: 0,
         closedRounds: 0,
         openRounds: 0,
         confirmedParticipations: 0,
         averageTicket: 0,
-        rounds: []
+        rounds: [],
+        expenses: []
       } as AdminFinancialOverview
     };
   }
@@ -650,7 +664,8 @@ export async function getAdminStats() {
     { data: referralProfiles },
     { data: allGamesData },
     { data: allConfirmedBetsData },
-    { data: allWinnersData }
+    { data: allWinnersData },
+    expensesResult
   ] = await Promise.all([
     supabase.from("perfis").select("id", { count: "exact", head: true }),
     supabase.from("pagamentos").select("id", { count: "exact", head: true }).in("status", PENDING_PAYMENT_STATUSES),
@@ -658,7 +673,8 @@ export async function getAdminStats() {
     supabase.from("perfis").select("origem_ref"),
     supabase.from("jogos").select("id,time_da_casa,time_visitante,status_jogo,data_de_correspondencia"),
     supabase.from("apostas").select("id,jogo_id,pagamento_id,status").eq("status", "confirmed"),
-    supabase.from("rodada_vencedores").select("id,jogo_id,valor_premio")
+    supabase.from("rodada_vencedores").select("id,jogo_id,valor_premio"),
+    supabase.from("rodada_despesas").select("id,jogo_id,descricao,valor,criado_em").order("criado_em", { ascending: false })
   ]);
 
   const usersCount = users ?? 0;
@@ -713,8 +729,28 @@ export async function getAdminStats() {
   const paidPaymentsById = new Map(confirmedPaymentsRows.map((payment) => [stringValue(payment, ["id"]), payment]));
   const allConfirmedBets = (allConfirmedBetsData ?? []) as DbRow[];
   const allWinners = (allWinnersData ?? []) as DbRow[];
+  const allExpenses = expensesResult.error ? [] : (expensesResult.data ?? []) as DbRow[];
   const prizePaidTotal = allWinners.reduce((total, winner) => total + numberValue(winner, ["valor_premio"], 0), 0);
+  const expensesTotal = allExpenses.reduce((total, expense) => total + numberValue(expense, ["valor"], 0), 0);
   const gamesRows = (allGamesData ?? []) as DbRow[];
+  const gameLabelById = new Map(
+    gamesRows.map((game) => [
+      stringValue(game, ["id"]),
+      `${stringValue(game, ["time_da_casa"], "Brasil")} x ${stringValue(game, ["time_visitante"], "Adversário")}`
+    ])
+  );
+  const expenses = allExpenses.map((expense): AdminRoundExpense => {
+    const gameId = stringValue(expense, ["jogo_id"]);
+
+    return {
+      id: stringValue(expense, ["id"]),
+      gameId,
+      match: gameLabelById.get(gameId) ?? "Rodada não encontrada",
+      description: stringValue(expense, ["descricao"], "Despesa"),
+      value: numberValue(expense, ["valor"], 0),
+      createdAtLabel: dateTimeLabel(stringValue(expense, ["criado_em"], ""))
+    };
+  });
   const financialRounds = gamesRows
     .map((game): AdminFinancialRoundRow => {
       const gameId = stringValue(game, ["id"]);
@@ -726,15 +762,19 @@ export async function getAdminStats() {
       }, 0);
       const gameWinners = allWinners.filter((winner) => stringValue(winner, ["jogo_id"]) === gameId);
       const prizePaid = gameWinners.reduce((total, winner) => total + numberValue(winner, ["valor_premio"], 0), 0);
+      const gameExpenses = allExpenses
+        .filter((expense) => stringValue(expense, ["jogo_id"]) === gameId)
+        .reduce((total, expense) => total + numberValue(expense, ["valor"], 0), 0);
 
       return {
         id: gameId,
-        match: `${stringValue(game, ["time_da_casa"], "Brasil")} x ${stringValue(game, ["time_visitante"], "Adversário")}`,
+        match: gameLabelById.get(gameId) ?? "Rodada",
         status: stringValue(game, ["status_jogo"], "aberto"),
         confirmedParticipations: gameBets.length,
         collected,
         prizePaid,
-        balance: collected - prizePaid,
+        expenses: gameExpenses,
+        balance: collected - prizePaid - gameExpenses,
         winners: gameWinners.length
       };
     })
@@ -746,12 +786,14 @@ export async function getAdminStats() {
   const financial: AdminFinancialOverview = {
     totalCollected: paidTotal,
     prizesPaid: prizePaidTotal,
-    operationalBalance: paidTotal - prizePaidTotal,
+    expensesTotal,
+    operationalBalance: paidTotal - prizePaidTotal - expensesTotal,
     closedRounds: gamesRows.filter((game) => stringValue(game, ["status_jogo"]) === "encerrado").length,
     openRounds: gamesRows.filter((game) => stringValue(game, ["status_jogo"], "aberto") === "aberto").length,
     confirmedParticipations: allConfirmedBets.length,
     averageTicket: paymentsConfirmed > 0 ? paidTotal / paymentsConfirmed : 0,
-    rounds: financialRounds
+    rounds: financialRounds,
+    expenses
   };
   const rankingMatches = matches
     .filter((match) => match.hasFinalResult)

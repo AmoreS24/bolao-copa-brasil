@@ -5,6 +5,7 @@ import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { ManualPaymentConfirmButton } from "@/components/manual-payment-confirm-button";
 import { CloseRoundForm } from "@/components/close-round-form";
 import { RankingScoreForm } from "@/components/ranking-score-form";
+import { RoundExpensesManager } from "@/components/round-expenses-manager";
 import { currency } from "@/lib/utils";
 import { getAdminStats, type AdminBetFilter } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
@@ -56,6 +57,10 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
       id: match.id,
       label: `${match.homeTeam} x ${match.awayTeam} - ${match.dateLabel}`
     }));
+  const expenseMatches = stats.matches.map((match) => ({
+    id: match.id,
+    label: `${match.homeTeam} x ${match.awayTeam} - ${match.dateLabel}`
+  }));
   const adminActions: Array<[string, LucideIcon]> = [
     ["Monitorar Pix Asaas pendentes", Clock],
     ["Confirmar palpites pagos automaticamente", CheckCircle2],
@@ -93,12 +98,15 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard icon={Banknote} label="Arrecadação total" value={currency(stats.financial.totalCollected)} tone="yellow" />
           <StatCard icon={Trophy} label="Premiações pagas" value={currency(stats.financial.prizesPaid)} />
-          <StatCard icon={Wallet} label="Saldo operacional" value={currency(stats.financial.operationalBalance)} tone="blue" />
+          <StatCard icon={ReceiptText} label="Despesas totais" value={currency(stats.financial.expensesTotal)} />
+          <StatCard icon={Wallet} label="Saldo operacional real" value={currency(stats.financial.operationalBalance)} tone="blue" />
           <StatCard icon={CheckCircle2} label="Rodadas encerradas" value={`${stats.financial.closedRounds}`} />
           <StatCard icon={Clock} label="Rodadas abertas" value={`${stats.financial.openRounds}`} tone="yellow" />
           <StatCard icon={Users} label="Participações confirmadas" value={`${stats.financial.confirmedParticipations}`} tone="blue" />
           <StatCard icon={CircleDollarSign} label="Ticket médio" value={currency(stats.financial.averageTicket)} />
-          <StatCard icon={ReceiptText} label="Pagamentos confirmados" value={`${stats.paymentsConfirmed}`} tone="yellow" />
+        </div>
+        <div className="mt-5">
+          <RoundExpensesManager matches={expenseMatches} expenses={stats.financial.expenses} />
         </div>
         <div className="mt-5 overflow-hidden rounded-lg bg-white shadow-field">
           <div className="border-b border-slate-100 p-4">
@@ -113,7 +121,8 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
                   <th className="px-4 py-3">Participações confirmadas</th>
                   <th className="px-4 py-3">Arrecadado</th>
                   <th className="px-4 py-3">Premiação paga</th>
-                  <th className="px-4 py-3">Saldo da rodada</th>
+                  <th className="px-4 py-3">Despesas</th>
+                  <th className="px-4 py-3">Saldo real</th>
                   <th className="px-4 py-3">Vencedores</th>
                 </tr>
               </thead>
@@ -125,6 +134,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
                     <td className="px-4 py-3">{round.confirmedParticipations}</td>
                     <td className="px-4 py-3 font-black text-brasil-green">{currency(round.collected)}</td>
                     <td className="px-4 py-3">{currency(round.prizePaid)}</td>
+                    <td className="px-4 py-3">{currency(round.expenses)}</td>
                     <td className="px-4 py-3 font-black text-brasil-blue">{currency(round.balance)}</td>
                     <td className="px-4 py-3">{round.winners}</td>
                   </tr>
