@@ -37,6 +37,7 @@ export type LiveMatch = {
 
 export type LiveRankingPlayer = {
   position: number;
+  profileId: string;
   name: string;
   points: number;
   games: number;
@@ -49,6 +50,24 @@ export type LiveUserHistory = {
   officialResult: string;
   points: number;
   status: string;
+  rankingBreakdown?: LiveRankingBreakdown;
+};
+
+export type LiveRankingBreakdown = {
+  match: string;
+  dateLabel: string;
+  total: number;
+  accumulated: number;
+  resultado: number;
+  gols: number;
+  primeiroGol: number;
+  escanteios: number;
+  cartoes: number;
+};
+
+export type LiveRankingRoundDetail = LiveRankingBreakdown & {
+  id: string;
+  name: string;
 };
 
 export type ClosedRoundWinner = {
@@ -92,6 +111,11 @@ export type AdminAffiliateRow = {
   signups: number;
   confirmedPayments: number;
   paidTotal: number;
+};
+
+export type AdminRankingMatch = {
+  id: string;
+  label: string;
 };
 
 const ENTRY_VALUE = 10;
@@ -382,24 +406,74 @@ export async function getRankingPlayers(limit = 10): Promise<LiveRankingPlayer[]
   const { data, error } = await supabase
     .from("torcida_votos")
     .select("*, perfis(*)")
+    .order("pontos", { ascending: false });
+
+  if (error) {
+    return [];
+  }
+
+  const playersByProfile = new Map<string, LiveRankingPlayer>();
+
+  for (const row of (data ?? []) as DbRow[]) {
+    const profile = (row.perfis ?? {}) as DbRow;
+    const profileId = stringValue(row, ["perfil_id"], stringValue(profile, ["id"], stringValue(row, ["id"])));
+    const current = playersByProfile.get(profileId) ?? {
+      position: 0,
+      profileId,
+      name: stringValue(profile, ["nome", "name"], stringValue(row, ["nome", "name"], "Participante")),
+      points: 0,
+      games: 0
+    };
+
+    current.points += numberValue(row, ["pontos_total_rodada", "pontos", "points", "pontuacao"], 0);
+    current.games += numberValue(row, ["jogos", "games", "participacoes"], 1);
+    playersByProfile.set(profileId, current);
+  }
+
+  return Array.from(playersByProfile.values())
+    .sort((a, b) => b.points - a.points || b.games - a.games)
+    .slice(0, limit)
+    .map((player, index) => ({ ...player, position: index + 1 }));
+}
+
+export async function getRankingRoundDetails(limit = 50): Promise<LiveRankingRoundDetail[]> {
+  const supabase = getSupabaseServer();
+
+  if (!supabase) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("torcida_votos")
+    .select("*, perfis(*), jogos(*)")
+    .not("apurado_em", "is", null)
+    .order("apurado_em", { ascending: false })
     .limit(limit);
 
   if (error) {
     return [];
   }
 
-  const rows = ((data ?? []) as DbRow[]).map((row, index) => {
-    const profile = (row.perfis ?? {}) as DbRow;
+  return ((data ?? []) as DbRow[]).map((vote) => {
+    const profile = (vote.perfis ?? {}) as DbRow;
+    const game = (vote.jogos ?? {}) as DbRow;
+    const homeTeam = stringValue(game, ["time_da_casa"], "Brasil");
+    const awayTeam = stringValue(game, ["time_visitante"], "Adversário");
 
     return {
-      position: index + 1,
-      name: stringValue(profile, ["nome", "name"], stringValue(row, ["nome", "name"], "Participante")),
-      points: numberValue(row, ["pontos", "points", "pontuacao"], 0),
-      games: numberValue(row, ["jogos", "games", "participacoes"], 1)
+      id: stringValue(vote, ["id"]),
+      name: stringValue(profile, ["nome"], "Participante"),
+      match: `${homeTeam} x ${awayTeam}`,
+      dateLabel: dateLabel(stringValue(game, ["data_de_correspondencia"], "")),
+      total: numberValue(vote, ["pontos_total_rodada", "pontos"], 0),
+      accumulated: numberValue(vote, ["pontos_total_acumulado"], 0),
+      resultado: numberValue(vote, ["pontos_resultado"], 0),
+      gols: numberValue(vote, ["pontos_gols"], 0),
+      primeiroGol: numberValue(vote, ["pontos_primeiro_gol"], 0),
+      escanteios: numberValue(vote, ["pontos_escanteios"], 0),
+      cartoes: numberValue(vote, ["pontos_cartoes"], 0)
     };
   });
-
-  return rows.sort((a, b) => b.points - a.points).map((player, index) => ({ ...player, position: index + 1 }));
 }
 
 export async function getClosedRounds(): Promise<ClosedRound[]> {
@@ -476,7 +550,8 @@ export async function getAdminStats() {
       conversionRate: 0,
       paidTotal: 0,
       bets: [] as AdminBetRow[],
-      topAffiliates: [] as AdminAffiliateRow[]
+      topAffiliates: [] as AdminAffiliateRow[],
+      rankingMatches: [] as AdminRankingMatch[]
     };
   }
 
@@ -536,6 +611,12 @@ export async function getAdminStats() {
   const topAffiliates = Array.from(affiliateStats.values())
     .sort((a, b) => b.paidTotal - a.paidTotal || b.confirmedPayments - a.confirmedPayments || b.signups - a.signups)
     .slice(0, 10);
+  const rankingMatches = matches
+    .filter((match) => match.hasFinalResult)
+    .map((match): AdminRankingMatch => ({
+      id: match.id,
+      label: `${match.homeTeam} x ${match.awayTeam} - ${match.officialResult || match.dateLabel}`
+    }));
 
   const { data: betsData } = await supabase
     .from("apostas")
@@ -600,7 +681,8 @@ export async function getAdminStats() {
     conversionRate: usersCount > 0 ? Math.round((paymentsConfirmed / usersCount) * 100) : 0,
     paidTotal,
     bets,
-    topAffiliates
+    topAffiliates,
+    rankingMatches
   };
 }
 
@@ -616,14 +698,41 @@ export async function getProfileSummary() {
     };
   }
 
-  const [{ data: profile }, { data: guesses }] = await Promise.all([
+  const [{ data: profile }, { data: guesses }, { data: rankingVotes }] = await Promise.all([
     supabase.from("perfis").select("id,nome,telefone").eq("id", user.id).maybeSingle(),
-    supabase.from("apostas").select("*, jogos(*)").eq("perfil_id", user.id).limit(10)
+    supabase.from("apostas").select("*, jogos(*)").eq("perfil_id", user.id).limit(10),
+    supabase
+      .from("torcida_votos")
+      .select("*, jogos(*)")
+      .eq("perfil_id", user.id)
+      .order("criado_em", { ascending: false })
   ]);
 
   const profileRow = (profile ?? {}) as DbRow;
+  const rankingByGame = new Map<string, LiveRankingBreakdown>();
+
+  for (const vote of (rankingVotes ?? []) as DbRow[]) {
+    const game = (vote.jogos ?? {}) as DbRow;
+    const gameId = stringValue(vote, ["jogo_id"]);
+    const homeTeam = stringValue(game, ["time_da_casa"], "Brasil");
+    const awayTeam = stringValue(game, ["time_visitante"], "Adversário");
+
+    rankingByGame.set(gameId, {
+      match: `${homeTeam} x ${awayTeam}`,
+      dateLabel: dateLabel(stringValue(game, ["data_de_correspondencia"], "")),
+      total: numberValue(vote, ["pontos_total_rodada", "pontos"], 0),
+      accumulated: numberValue(vote, ["pontos_total_acumulado"], 0),
+      resultado: numberValue(vote, ["pontos_resultado"], 0),
+      gols: numberValue(vote, ["pontos_gols"], 0),
+      primeiroGol: numberValue(vote, ["pontos_primeiro_gol"], 0),
+      escanteios: numberValue(vote, ["pontos_escanteios"], 0),
+      cartoes: numberValue(vote, ["pontos_cartoes"], 0)
+    });
+  }
+
   const history = ((guesses ?? []) as DbRow[]).map((guess) => {
     const game = (guess.jogos ?? {}) as DbRow;
+    const gameId = stringValue(guess, ["jogo_id"]);
     const homeTeam = stringValue(game, ["time_da_casa"], "Brasil");
     const awayTeam = stringValue(game, ["time_visitante"], "Adversário");
     const homeScore = numberValue(guess, ["gols_brasil", "gols_casa", "brasil_goals", "placar_casa"], 0);
@@ -643,7 +752,8 @@ export async function getProfileSummary() {
         ? resultStatus === "vencedor"
           ? "vencedor"
           : "perdedor"
-        : "aguardando"
+        : "aguardando",
+      rankingBreakdown: rankingByGame.get(gameId)
     };
   });
 

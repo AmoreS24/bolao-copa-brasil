@@ -61,16 +61,33 @@ export default async function DashboardPage() {
         <SectionTitle eyebrow="Historico" title="Jogos em que participou" />
         <div className="overflow-hidden rounded-lg bg-white shadow-field">
           {profile.history.map((item, index) => (
-            <div key={`${item.match}-${item.guess}-${index}`} className="grid gap-2 border-b border-slate-100 p-4 last:border-0 md:grid-cols-4">
-              <div>
-                <p className="font-black text-brasil-navy">{item.match}</p>
-                <p className="text-sm font-semibold text-slate-500">{item.dateLabel || "Data a confirmar"}</p>
+            <div key={`${item.match}-${item.guess}-${index}`} className="grid gap-3 border-b border-slate-100 p-4 last:border-0">
+              <div className="grid gap-2 md:grid-cols-4">
+                <div>
+                  <p className="font-black text-brasil-navy">{item.match}</p>
+                  <p className="text-sm font-semibold text-slate-500">{item.dateLabel || "Data a confirmar"}</p>
+                </div>
+                <p className="font-semibold text-slate-600">Seu palpite: {item.guess}</p>
+                <p className="font-semibold text-slate-600">
+                  Resultado oficial: {item.officialResult || "Aguardando"}
+                </p>
+                <p className="font-black text-brasil-green">{statusLabel(item.status)}</p>
               </div>
-              <p className="font-semibold text-slate-600">Seu palpite: {item.guess}</p>
-              <p className="font-semibold text-slate-600">
-                Resultado oficial: {item.officialResult || "Aguardando"}
-              </p>
-              <p className="font-black text-brasil-green">{statusLabel(item.status)}</p>
+              {item.rankingBreakdown ? (
+                <div className="rounded-lg bg-brasil-light p-3">
+                  <p className="font-black text-brasil-navy">
+                    Ranking da Torcida: {item.rankingBreakdown.total} pts na rodada
+                    {item.rankingBreakdown.accumulated ? ` | acumulado ${item.rankingBreakdown.accumulated} pts` : ""}
+                  </p>
+                  <div className="mt-2 grid gap-2 text-xs font-bold text-slate-600 sm:grid-cols-5">
+                    <span>Resultado: {item.rankingBreakdown.resultado}</span>
+                    <span>Gols: {item.rankingBreakdown.gols}</span>
+                    <span>Primeiro gol: {item.rankingBreakdown.primeiroGol}</span>
+                    <span>Escanteios: {item.rankingBreakdown.escanteios}</span>
+                    <span>Cartões: {item.rankingBreakdown.cartoes}</span>
+                  </div>
+                </div>
+              ) : null}
             </div>
           ))}
           {profile.history.length === 0 ? (

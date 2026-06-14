@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { ManualPaymentConfirmButton } from "@/components/manual-payment-confirm-button";
 import { CloseRoundForm } from "@/components/close-round-form";
+import { RankingScoreForm } from "@/components/ranking-score-form";
 import { currency } from "@/lib/utils";
 import { getAdminStats, type AdminBetFilter } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
@@ -90,6 +91,10 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
       <section className="mt-10">
         <SectionTitle eyebrow="Apuração" title="Encerrar rodada" />
         <CloseRoundForm matches={closableMatches} />
+      </section>
+      <section className="mt-10">
+        <SectionTitle eyebrow="Ranking da Torcida" title="Apuração Ranking" />
+        <RankingScoreForm matches={stats.rankingMatches} />
       </section>
       <section className="mt-10">
         <SectionTitle eyebrow="Divulgação" title="Top Afiliados" />

@@ -1,14 +1,18 @@
 import { CheckCircle2, Medal, Trophy } from "lucide-react";
 import { RankingList } from "@/components/ranking-list";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
-import { getNextMatch, getRankingPlayers } from "@/data/supabase-live";
+import { getNextMatch, getRankingPlayers, getRankingRoundDetails } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function RankingPage() {
-  const [ranking, match] = await Promise.all([getRankingPlayers(10), getNextMatch()]);
+  const [ranking, match, roundDetails] = await Promise.all([
+    getRankingPlayers(10),
+    getNextMatch(),
+    getRankingRoundDetails(30)
+  ]);
   const user = getCurrentUser();
   const supabase = getSupabaseServerClient();
   const { data: existingVote } = user && match && supabase
@@ -50,6 +54,32 @@ export default async function RankingPage() {
       <section className="mt-10">
         <SectionTitle eyebrow="Top 10" title="Top 10 da Torcida Brasileira" />
         <RankingList players={ranking} limit={10} />
+      </section>
+      <section className="mt-10">
+        <SectionTitle eyebrow="Rodadas apuradas" title="Detalhamento da pontuação" />
+        <div className="overflow-hidden rounded-lg bg-white shadow-field">
+          {roundDetails.map((detail) => (
+            <div key={detail.id} className="grid gap-3 border-b border-slate-100 p-4 last:border-0">
+              <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="font-black text-brasil-navy">{detail.name}</p>
+                  <p className="text-sm font-semibold text-slate-500">{detail.match} {detail.dateLabel ? `| ${detail.dateLabel}` : ""}</p>
+                </div>
+                <p className="text-lg font-black text-brasil-blue">{detail.total} pts</p>
+              </div>
+              <div className="grid gap-2 text-xs font-bold text-slate-600 sm:grid-cols-5">
+                <span>Resultado: {detail.resultado}</span>
+                <span>Gols: {detail.gols}</span>
+                <span>Primeiro gol: {detail.primeiroGol}</span>
+                <span>Escanteios: {detail.escanteios}</span>
+                <span>Cartões: {detail.cartoes}</span>
+              </div>
+            </div>
+          ))}
+          {roundDetails.length === 0 ? (
+            <div className="p-4 font-semibold text-slate-600">Nenhuma rodada apurada ainda.</div>
+          ) : null}
+        </div>
       </section>
       <section className="mt-8 rounded-lg border border-brasil-green/25 bg-white p-5 shadow-field">
         <SectionTitle eyebrow="Voto da torcida" title="Registre seu voto" />
