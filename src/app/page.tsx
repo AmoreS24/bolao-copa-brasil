@@ -1,7 +1,7 @@
 import { CalendarDays, Clock, Flame, MapPin, Trophy, Users, Wallet } from "lucide-react";
 import { getClosedRounds, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
-import { countryWithFlag } from "@/lib/countries";
+import { countryFlag, countryWithFlag } from "@/lib/countries";
 import { MatchCountdown } from "@/components/match-countdown";
 import { AnimatedScoreboard } from "@/components/animated-scoreboard";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
@@ -59,6 +59,8 @@ export default async function Home() {
   const nextBrazilMatch = upcomingBrazilMatches.find(
     (nextMatch) => nextMatch.id !== match.id && new Date(nextMatch.startsAt).getTime() > new Date(match.startsAt).getTime()
   );
+  const homeFlag = countryFlag(match.homeTeam);
+  const awayFlag = countryFlag(match.awayTeam);
 
   return (
     <>
@@ -73,9 +75,9 @@ export default async function Home() {
               {roundLabel}
             </p>
             <h1 className="match-title mx-auto max-w-4xl font-sans text-4xl font-black uppercase leading-[0.98] tracking-wide sm:text-5xl md:text-[3.4rem]">
-              <span className="text-brasil-yellow">{countryWithFlag(match.homeTeam)}</span>
+              <span className="text-brasil-yellow">{homeFlag ? `${homeFlag} ` : ""}{match.homeTeam}</span>
               <span className="mx-2 align-middle text-2xl text-white md:mx-4 md:text-4xl">x</span>
-              <span className="text-white">{countryWithFlag(match.awayTeam)}</span>
+              <span className="text-white">{match.awayTeam}{awayFlag ? ` ${awayFlag}` : ""}</span>
             </h1>
             <div className="mx-auto mt-3 flex max-w-3xl flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-sm font-bold text-white/90 sm:text-base">
               <p className="flex items-center gap-1.5">
