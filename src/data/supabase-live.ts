@@ -9,6 +9,7 @@ export type LiveMatch = {
   id: string;
   homeTeam: string;
   awayTeam: string;
+  status: "aberto" | "em_andamento" | "encerrado";
   correspondenceDate: string;
   startsAt: string;
   bettingClosesAt: string;
@@ -21,6 +22,13 @@ export type LiveMatch = {
   entryValue: number;
   operationalFee: number;
   exactPool: number;
+  guaranteedPrize: number;
+  accumulatedPrize: number;
+  displayedPrizeTotal: number;
+  finalHomeScore: number | null;
+  finalAwayScore: number | null;
+  officialResult: string;
+  hasFinalResult: boolean;
   rankingPool: number;
   confirmedGuesses: number;
   spotsLeft: number;
@@ -36,9 +44,29 @@ export type LiveRankingPlayer = {
 
 export type LiveUserHistory = {
   match: string;
+  dateLabel: string;
   guess: string;
+  officialResult: string;
   points: number;
   status: string;
+};
+
+export type ClosedRoundWinner = {
+  id: string;
+  name: string;
+  maskedPhone: string;
+  guess: string;
+  prizeValue: number;
+};
+
+export type ClosedRound = {
+  id: string;
+  match: string;
+  result: string;
+  dateLabel: string;
+  statusLabel: "Teve vencedor" | "Acumulou";
+  accumulated: boolean;
+  winners: ClosedRoundWinner[];
 };
 
 export type AdminBetFilter = "todos" | "confirmados" | "pendentes";
@@ -118,6 +146,23 @@ function numberValue(row: DbRow, keys: string[], fallback = 0) {
   return fallback;
 }
 
+function optionalNumberValue(row: DbRow, keys: string[]) {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value.replace(",", "."));
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return null;
+}
+
 function dateLabel(value: string) {
   const date = new Date(value);
 
@@ -191,9 +236,24 @@ function displayedPrize(confirmedGuesses: number, entryValue: number) {
   return Math.max(MINIMUM_DISPLAY_PRIZE, confirmedGuesses * entryValue);
 }
 
+function maskPhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+
+  if (digits.length <= 4) {
+    return "*****";
+  }
+
+  const withoutCountry = digits.startsWith("55") && digits.length > 11 ? digits.slice(2) : digits;
+  const start = withoutCountry.slice(0, 2);
+  const end = withoutCountry.slice(-2);
+
+  return `${start}*****${end}`;
+}
+
 function matchFromRow(row: DbRow, confirmedGuesses: number, index = 0): LiveMatch {
   const homeTeam = stringValue(row, ["time_da_casa", "home_team", "mandante", "casa"], "Brasil");
   const awayTeam = stringValue(row, ["time_visitante", "away_team", "visitante", "adversario"], "Adversário");
+  const status = stringValue(row, ["status_jogo"], "aberto") as LiveMatch["status"];
   const startsAt = stringValue(
     row,
     ["data_de_correspondencia", "starts_at", "data", "data_jogo"],
@@ -203,11 +263,22 @@ function matchFromRow(row: DbRow, confirmedGuesses: number, index = 0): LiveMatc
   const capacity = numberValue(row, ["limite_apostas", "capacidade", "vagas"], DEFAULT_CAPACITY);
   const entryValue = numberValue(row, ["valor_palpite", "entry_value"], ENTRY_VALUE);
   const operationalFee = numberValue(row, ["taxa_operacional", "operational_fee"], OPERATIONAL_FEE);
+  const guaranteedPrize = numberValue(row, ["premio_garantido"], MINIMUM_DISPLAY_PRIZE);
+  const accumulatedPrize = numberValue(row, ["premio_acumulado"], 0);
+  const displayedPrizeTotal = numberValue(
+    row,
+    ["premio_total_exibido"],
+    Math.max(displayedPrize(confirmedGuesses, entryValue), guaranteedPrize + accumulatedPrize)
+  );
+  const finalHomeScore = optionalNumberValue(row, ["placar_casa_final"]);
+  const finalAwayScore = optionalNumberValue(row, ["placar_visitante_final"]);
+  const hasFinalResult = finalHomeScore !== null && finalAwayScore !== null;
 
   return {
     id: stringValue(row, ["id", "slug"], slugFromTeams(homeTeam, awayTeam)),
     homeTeam,
     awayTeam,
+    status: status === "em_andamento" || status === "encerrado" ? status : "aberto",
     correspondenceDate: startsAt,
     startsAt,
     bettingClosesAt,
@@ -219,7 +290,14 @@ function matchFromRow(row: DbRow, confirmedGuesses: number, index = 0): LiveMatc
     group: stringValue(row, ["grupo", "group"], index === 0 ? "Próximo jogo" : "Jogo do Brasil"),
     entryValue,
     operationalFee,
-    exactPool: displayedPrize(confirmedGuesses, entryValue),
+    exactPool: displayedPrizeTotal,
+    guaranteedPrize,
+    accumulatedPrize,
+    displayedPrizeTotal,
+    finalHomeScore,
+    finalAwayScore,
+    officialResult: hasFinalResult ? `${finalHomeScore} x ${finalAwayScore}` : "",
+    hasFinalResult,
     rankingPool: numberValue(row, ["premio_torcida", "ranking_pool"], 0),
     confirmedGuesses,
     spotsLeft: Math.max(capacity - confirmedGuesses, 0),
@@ -266,7 +344,8 @@ export async function getUpcomingMatches() {
 
   const { data, error } = await supabase
     .from("jogos")
-    .select(GAME_COLUMNS as "*");
+    .select("*")
+    .order("data_de_correspondencia", { ascending: true });
 
   if (error) {
     return [];
@@ -285,7 +364,7 @@ export async function getUpcomingMatches() {
 
 export async function getNextMatch() {
   const matches = await getUpcomingMatches();
-  return matches[0] ?? null;
+  return matches.find((match) => match.status !== "encerrado") ?? matches[0] ?? null;
 }
 
 export async function getMatchById(id: string) {
@@ -321,6 +400,66 @@ export async function getRankingPlayers(limit = 10): Promise<LiveRankingPlayer[]
   });
 
   return rows.sort((a, b) => b.points - a.points).map((player, index) => ({ ...player, position: index + 1 }));
+}
+
+export async function getClosedRounds(): Promise<ClosedRound[]> {
+  const supabase = getSupabaseServerClient() ?? getSupabaseServer();
+
+  if (!supabase) {
+    return [];
+  }
+
+  const { data: gamesData, error: gamesError } = await supabase
+    .from("jogos")
+    .select("*")
+    .eq("status_jogo", "encerrado")
+    .order("data_de_correspondencia", { ascending: false });
+
+  if (gamesError) {
+    return [];
+  }
+
+  const games = (gamesData ?? []) as DbRow[];
+  const gameIds = games.map((game) => stringValue(game, ["id"])).filter(Boolean);
+  const { data: winnersData } = gameIds.length
+    ? await supabase
+      .from("rodada_vencedores")
+      .select("id,jogo_id,nome,telefone_mascarado,palpite_casa,palpite_visitante,valor_premio")
+      .in("jogo_id", gameIds)
+    : { data: [] };
+  const winnersByGame = new Map<string, ClosedRoundWinner[]>();
+
+  for (const winner of (winnersData ?? []) as DbRow[]) {
+    const gameId = stringValue(winner, ["jogo_id"]);
+    const currentWinners = winnersByGame.get(gameId) ?? [];
+    currentWinners.push({
+      id: stringValue(winner, ["id"]),
+      name: stringValue(winner, ["nome"], "Vencedor"),
+      maskedPhone: stringValue(winner, ["telefone_mascarado"], "*****"),
+      guess: `${numberValue(winner, ["palpite_casa"], 0)} x ${numberValue(winner, ["palpite_visitante"], 0)}`,
+      prizeValue: numberValue(winner, ["valor_premio"], 0)
+    });
+    winnersByGame.set(gameId, currentWinners);
+  }
+
+  return games.map((game) => {
+    const id = stringValue(game, ["id"]);
+    const homeTeam = stringValue(game, ["time_da_casa"], "Brasil");
+    const awayTeam = stringValue(game, ["time_visitante"], "Adversário");
+    const finalHome = optionalNumberValue(game, ["placar_casa_final"]);
+    const finalAway = optionalNumberValue(game, ["placar_visitante_final"]);
+    const winners = winnersByGame.get(id) ?? [];
+
+    return {
+      id,
+      match: `${homeTeam} x ${awayTeam}`,
+      result: finalHome !== null && finalAway !== null ? `${homeTeam} ${finalHome} x ${finalAway} ${awayTeam}` : "Resultado não informado",
+      dateLabel: dateLabel(stringValue(game, ["data_de_correspondencia"], "")),
+      statusLabel: winners.length > 0 ? "Teve vencedor" : "Acumulou",
+      accumulated: winners.length === 0,
+      winners
+    };
+  });
 }
 
 export async function getAdminStats() {
@@ -487,14 +626,24 @@ export async function getProfileSummary() {
     const game = (guess.jogos ?? {}) as DbRow;
     const homeTeam = stringValue(game, ["time_da_casa"], "Brasil");
     const awayTeam = stringValue(game, ["time_visitante"], "Adversário");
-    const homeScore = numberValue(guess, ["gols_casa", "brasil_goals", "placar_casa"], 0);
-    const awayScore = numberValue(guess, ["gols_visitante", "opponent_goals", "placar_visitante"], 0);
+    const homeScore = numberValue(guess, ["gols_brasil", "gols_casa", "brasil_goals", "placar_casa"], 0);
+    const awayScore = numberValue(guess, ["gols_adversario", "gols_visitante", "opponent_goals", "placar_visitante"], 0);
+    const finalHome = optionalNumberValue(game, ["placar_casa_final"]);
+    const finalAway = optionalNumberValue(game, ["placar_visitante_final"]);
+    const gameStatus = stringValue(game, ["status_jogo"], "aberto");
+    const resultStatus = stringValue(guess, ["resultado_status"], "aguardando");
 
     return {
       match: `${homeTeam} x ${awayTeam}`,
+      dateLabel: dateLabel(stringValue(game, ["data_de_correspondencia"], "")),
       guess: `${homeScore} x ${awayScore}`,
+      officialResult: finalHome !== null && finalAway !== null ? `${finalHome} x ${finalAway}` : "",
       points: numberValue(guess, ["pontos", "points"], 0),
-      status: stringValue(guess, ["status", "payment_status"], "Aguardando resultado")
+      status: gameStatus === "encerrado"
+        ? resultStatus === "vencedor"
+          ? "vencedor"
+          : "perdedor"
+        : "aguardando"
     };
   });
 

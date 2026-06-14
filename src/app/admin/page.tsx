@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { ManualPaymentConfirmButton } from "@/components/manual-payment-confirm-button";
+import { CloseRoundForm } from "@/components/close-round-form";
 import { currency } from "@/lib/utils";
 import { getAdminStats, type AdminBetFilter } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
@@ -48,9 +49,16 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
   const filteredBets = activeFilter === "todos"
     ? stats.bets
     : stats.bets.filter((bet) => bet.filterStatus === activeFilter);
+  const closableMatches = stats.matches
+    .filter((match) => match.status === "aberto" || match.status === "em_andamento")
+    .map((match) => ({
+      id: match.id,
+      label: `${match.homeTeam} x ${match.awayTeam} - ${match.dateLabel}`
+    }));
   const adminActions: Array<[string, LucideIcon]> = [
     ["Monitorar Pix Asaas pendentes", Clock],
     ["Confirmar palpites pagos automaticamente", CheckCircle2],
+    ["Apurar Ranking da Torcida", Trophy],
     ["Atualizar acumulado exibido no topo", Edit3],
     ["Encerrar rodada e calcular premios", Trophy]
   ];
@@ -78,6 +86,10 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
             <p>Pix pendentes: {stats.paymentsPending}</p>
           </div>
         </div>
+      </section>
+      <section className="mt-10">
+        <SectionTitle eyebrow="Apuração" title="Encerrar rodada" />
+        <CloseRoundForm matches={closableMatches} />
       </section>
       <section className="mt-10">
         <SectionTitle eyebrow="Divulgação" title="Top Afiliados" />

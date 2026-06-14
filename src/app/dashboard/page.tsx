@@ -8,6 +8,9 @@ export const dynamic = "force-dynamic";
 
 function statusLabel(status: string) {
   const labels: Record<string, string> = {
+    aguardando: "⏳ Aguardando resultado",
+    vencedor: "🏆 Palpite vencedor",
+    perdedor: "❌ Palpite não vencedor",
     confirmed: "Confirmado ✅",
     pending_payment: "Aguardando pagamento",
     paid: "Pago ✅",
@@ -57,11 +60,16 @@ export default async function DashboardPage() {
       <section className="mt-10">
         <SectionTitle eyebrow="Historico" title="Jogos em que participou" />
         <div className="overflow-hidden rounded-lg bg-white shadow-field">
-          {profile.history.map((item) => (
-            <div key={item.match} className="grid gap-2 border-b border-slate-100 p-4 last:border-0 md:grid-cols-4">
-              <p className="font-black text-brasil-navy">{item.match}</p>
-              <p className="font-semibold text-slate-600">Palpite: {item.guess}</p>
-              <p className="font-semibold text-slate-600">{item.points} pontos</p>
+          {profile.history.map((item, index) => (
+            <div key={`${item.match}-${item.guess}-${index}`} className="grid gap-2 border-b border-slate-100 p-4 last:border-0 md:grid-cols-4">
+              <div>
+                <p className="font-black text-brasil-navy">{item.match}</p>
+                <p className="text-sm font-semibold text-slate-500">{item.dateLabel || "Data a confirmar"}</p>
+              </div>
+              <p className="font-semibold text-slate-600">Seu palpite: {item.guess}</p>
+              <p className="font-semibold text-slate-600">
+                Resultado oficial: {item.officialResult || "Aguardando"}
+              </p>
               <p className="font-black text-brasil-green">{statusLabel(item.status)}</p>
             </div>
           ))}

@@ -1,5 +1,5 @@
-import { CalendarDays, Clock, MapPin, Trophy, Users, Wallet } from "lucide-react";
-import { getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
+import { CalendarDays, Clock, Flame, MapPin, Trophy, Users, Wallet } from "lucide-react";
+import { getClosedRounds, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 import { MatchCountdown } from "@/components/match-countdown";
 import { AnimatedScoreboard } from "@/components/animated-scoreboard";
@@ -10,10 +10,11 @@ import { AuthGate } from "@/components/auth-gate";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [match, upcomingBrazilMatches, rankingPlayers] = await Promise.all([
+  const [match, upcomingBrazilMatches, rankingPlayers, closedRounds] = await Promise.all([
     getNextMatch(),
     getUpcomingMatches(),
-    getRankingPlayers(10)
+    getRankingPlayers(10),
+    getClosedRounds()
   ]);
 
   if (!match) {
@@ -30,6 +31,12 @@ export default async function Home() {
   }
 
   const publicEntryValue = match.entryValue + match.operationalFee;
+  const latestClosedRound = closedRounds[0];
+  const bettingStatusLabel = match.status === "encerrado"
+    ? "encerrado"
+    : match.status === "em_andamento"
+      ? "palpites em breve"
+      : "palpites abertos";
 
   return (
     <>
@@ -79,9 +86,15 @@ export default async function Home() {
               </div>
             </div>
             <div className="mt-4">
-              <AuthGate redirectTo={`/jogos/${match.id}`}>🔥 ENTRAR NO BOLÃO</AuthGate>
+              {match.status === "encerrado" ? (
+                <div className="inline-flex min-h-14 items-center justify-center rounded-full bg-white/16 px-7 py-3 text-lg font-black text-white shadow-field">
+                  Rodada encerrada
+                </div>
+              ) : (
+                <AuthGate redirectTo={`/jogos/${match.id}`}>🔥 ENTRAR NO BOLÃO</AuthGate>
+              )}
               <p className="mx-auto mt-2 max-w-sm text-center text-xs font-bold text-white/82">
-                Escolha quantos placares quiser e pague por Pix para confirmar
+                Status: {bettingStatusLabel}
               </p>
             </div>
           </div>
@@ -101,6 +114,36 @@ export default async function Home() {
       </section>
 
       <PageShell>
+        {latestClosedRound ? (
+          <section className="mb-8 rounded-lg bg-white p-5 shadow-field md:p-6">
+            {latestClosedRound.accumulated ? (
+              <div className="grid gap-3 md:grid-cols-[auto_1fr] md:items-center">
+                <span className="grid h-12 w-12 place-items-center rounded-full bg-brasil-yellow text-brasil-navy">
+                  <Flame size={24} aria-hidden />
+                </span>
+                <div>
+                  <p className="text-2xl font-black text-brasil-navy">🔥 Acumulou!</p>
+                  <p className="mt-1 font-black text-brasil-green">{latestClosedRound.result}</p>
+                  <p className="mt-1 font-semibold text-slate-600">
+                    Ninguém acertou o placar exato. A premiação segue acumulada para a próxima rodada.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-[auto_1fr] md:items-center">
+                <span className="grid h-12 w-12 place-items-center rounded-full bg-brasil-green text-white">
+                  <Trophy size={24} aria-hidden />
+                </span>
+                <div>
+                  <p className="text-2xl font-black text-brasil-navy">🏆 Temos vencedor!</p>
+                  <p className="mt-1 font-black text-brasil-green">Resultado oficial: {latestClosedRound.result}</p>
+                  <p className="mt-1 font-semibold text-slate-600">Confira os vencedores da rodada.</p>
+                </div>
+              </div>
+            )}
+          </section>
+        ) : null}
+
         <section>
           <SectionTitle eyebrow="Calendário" title="Próximos jogos do Brasil" />
           <div className="grid gap-4 md:grid-cols-2">
@@ -113,6 +156,7 @@ export default async function Home() {
                 <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600">
                   <p>{nextMatch.dateLabel}, {nextMatch.timeLabel}</p>
                   <p>{nextMatch.venue}</p>
+                  <p>Status: {nextMatch.status === "encerrado" ? "encerrado" : nextMatch.status === "em_andamento" ? "palpites em breve" : "palpites abertos"}</p>
                 </div>
                 <div className="mt-4">
                   <AuthGate redirectTo={`/jogos/${nextMatch.id}`} variant="compact">Apostar nesse jogo</AuthGate>
@@ -132,6 +176,9 @@ export default async function Home() {
           <StatCard icon={Wallet} label="Cada palpite" value={currency(publicEntryValue)} />
           <StatCard icon={Users} label="Palpites confirmados" value={`${match.confirmedGuesses}`} tone="blue" />
         </section>
+        <p className="mt-3 rounded-lg bg-white p-4 text-sm font-black text-brasil-navy shadow-field">
+          Prêmio garantido: R$ 200,00 + 60% do valor arrecadado.
+        </p>
 
         <section className="mt-10 grid gap-8 md:grid-cols-[0.95fr_1.05fr] md:items-start">
           <div>

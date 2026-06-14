@@ -18,6 +18,7 @@ const navItems = [
   { href: "/", label: "Início", icon: Home },
   { href: "/dashboard", label: "Meus Palpites", icon: Gauge },
   { href: "/ranking", label: "Ranking da Torcida", icon: Medal },
+  { href: "/vencedores", label: "Vencedores", icon: Trophy },
   { href: SUPPORT_WHATSAPP_URL, label: "Suporte", icon: Headphones, external: true }
 ];
 
@@ -56,7 +57,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           </div>
         </header>
         {children}
-        <nav className={`fixed inset-x-3 bottom-3 z-40 grid ${isMaster ? "grid-cols-5" : "grid-cols-4"} rounded-full border border-white/70 bg-white/95 p-1 text-[11px] font-black text-brasil-navy shadow-[0_12px_34px_rgba(7,27,77,0.2)] backdrop-blur md:hidden`}>
+        <nav className={`fixed inset-x-3 bottom-3 z-40 grid ${isMaster ? "grid-cols-6" : "grid-cols-5"} rounded-full border border-white/70 bg-white/95 p-1 text-[10px] font-black text-brasil-navy shadow-[0_12px_34px_rgba(7,27,77,0.2)] backdrop-blur md:hidden`}>
           {visibleNavItems.map((item) => (
             <Link
               key={item.href}

@@ -4,14 +4,19 @@ import { currency } from "@/lib/utils";
 import type { LiveMatch } from "@/data/supabase-live";
 
 export function MatchCard({ match }: { match: LiveMatch }) {
-  const isActive = Boolean(match.id);
+  const isActive = Boolean(match.id) && match.status !== "encerrado";
   const publicEntryValue = match.entryValue + match.operationalFee;
+  const statusLabel = match.status === "encerrado"
+    ? "Encerrado"
+    : match.status === "em_andamento"
+      ? "Palpites em breve"
+      : "Palpites abertos";
 
   return (
     <article className="rounded-lg bg-white p-4 shadow-field">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-black uppercase text-brasil-green">Proximo jogo</p>
+          <p className="text-sm font-black uppercase text-brasil-green">{statusLabel}</p>
           <h3 className="text-xl font-black text-brasil-navy">
             {match.homeTeam} x {match.awayTeam}
           </h3>
@@ -45,7 +50,7 @@ export function MatchCard({ match }: { match: LiveMatch }) {
           isActive ? "bg-brasil-green text-white" : "pointer-events-none bg-slate-200 text-slate-500"
         }`}
       >
-        {isActive ? "Participar" : "Em breve"}
+        {isActive ? "Participar" : statusLabel}
       </Link>
     </article>
   );
