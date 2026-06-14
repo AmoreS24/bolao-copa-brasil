@@ -75,8 +75,8 @@ export function RankingScoreForm({ matches }: RankingScoreFormProps) {
           <select name="resultado_oficial" required className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green">
             <option value="">Selecione</option>
             <option>Brasil vence</option>
-            <option>Marrocos vence</option>
             <option>Empate</option>
+            <option>Brasil perde</option>
           </select>
         </label>
         <label className="grid gap-2 text-sm font-black text-brasil-navy">
@@ -84,16 +84,15 @@ export function RankingScoreForm({ matches }: RankingScoreFormProps) {
           <select name="primeiro_gol" required className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green">
             <option value="">Selecione</option>
             <option>Brasil</option>
-            <option>Marrocos</option>
+            <option>Adversário</option>
           </select>
         </label>
         <label className="grid gap-2 text-sm font-black text-brasil-navy">
           Faixa de escanteios
           <select name="faixa_escanteios" required className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green">
             <option value="">Selecione</option>
-            <option>0-3</option>
-            <option>4-6</option>
-            <option>7-10</option>
+            <option>0 a 5</option>
+            <option>6 a 10</option>
             <option>11+</option>
           </select>
         </label>
@@ -101,10 +100,9 @@ export function RankingScoreForm({ matches }: RankingScoreFormProps) {
           Faixa de cartões
           <select name="faixa_cartoes" required className="min-h-12 rounded-lg border border-slate-200 px-4 outline-none focus:border-brasil-green">
             <option value="">Selecione</option>
-            <option>0-2</option>
-            <option>3-5</option>
-            <option>6-8</option>
-            <option>9+</option>
+            <option>0 a 2</option>
+            <option>3 a 5</option>
+            <option>6+</option>
           </select>
         </label>
       </div>

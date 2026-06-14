@@ -13,10 +13,10 @@ type RankingScoreRequest = {
 
 type DbRow = Record<string, unknown>;
 
-const RESULT_OPTIONS = new Set(["Brasil vence", "Marrocos vence", "Empate"]);
-const FIRST_GOAL_OPTIONS = new Set(["Brasil", "Marrocos"]);
-const CORNER_OPTIONS = new Set(["0-3", "4-6", "7-10", "11+"]);
-const CARD_OPTIONS = new Set(["0-2", "3-5", "6-8", "9+"]);
+const RESULT_OPTIONS = new Set(["Brasil vence", "Empate", "Brasil perde"]);
+const FIRST_GOAL_OPTIONS = new Set(["Brasil", "Adversário"]);
+const CORNER_OPTIONS = new Set(["0 a 5", "6 a 10", "11+"]);
+const CARD_OPTIONS = new Set(["0 a 2", "3 a 5", "6+"]);
 
 function asNumber(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
@@ -28,19 +28,31 @@ function asString(value: unknown) {
 }
 
 function goalRange(totalGoals: number) {
-  if (totalGoals <= 2) {
-    return "0-2";
+  if (totalGoals <= 1) {
+    return "0 a 1";
   }
 
-  if (totalGoals <= 4) {
-    return "3-4";
+  if (totalGoals <= 3) {
+    return "2 a 3";
   }
 
-  if (totalGoals <= 6) {
-    return "5-6";
+  if (totalGoals <= 5) {
+    return "4 a 5";
   }
 
-  return "7+";
+  return "6+";
+}
+
+function resultFromScore(finalHome: number, finalAway: number) {
+  if (finalHome > finalAway) {
+    return "Brasil vence";
+  }
+
+  if (finalHome < finalAway) {
+    return "Brasil perde";
+  }
+
+  return "Empate";
 }
 
 export async function POST(request: Request) {
@@ -58,14 +70,14 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as RankingScoreRequest;
   const gameId = body.jogo_id?.trim();
-  const officialResult = body.resultado_oficial?.trim() ?? "";
+  const informedOfficialResult = body.resultado_oficial?.trim() ?? "";
   const firstGoal = body.primeiro_gol?.trim() ?? "";
   const cornerRange = body.faixa_escanteios?.trim() ?? "";
   const cardRange = body.faixa_cartoes?.trim() ?? "";
 
   if (
     !gameId ||
-    !RESULT_OPTIONS.has(officialResult) ||
+    !RESULT_OPTIONS.has(informedOfficialResult) ||
     !FIRST_GOAL_OPTIONS.has(firstGoal) ||
     !CORNER_OPTIONS.has(cornerRange) ||
     !CARD_OPTIONS.has(cardRange)
@@ -94,6 +106,7 @@ export async function POST(request: Request) {
   }
 
   const officialGoalRange = goalRange(finalHome + finalAway);
+  const officialResult = resultFromScore(finalHome, finalAway);
   const { data: votesData, error: votesError } = await supabase
     .from("torcida_votos")
     .select("id,perfil_id,pontos,pontos_total_rodada,resposta_resultado,resposta_gols,resposta_primeiro_gol,resposta_escanteios,resposta_cartoes")

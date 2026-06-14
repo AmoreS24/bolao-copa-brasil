@@ -14,33 +14,33 @@ type Question = {
 const QUESTIONS: Question[] = [
   {
     name: "resposta_resultado",
-    label: "A partida termina como?",
+    label: "Resultado da partida",
     points: 10,
-    options: ["Brasil vence", "Marrocos vence", "Empate"]
+    options: ["Brasil vence", "Empate", "Brasil perde"]
   },
   {
     name: "resposta_gols",
-    label: "Faixa de gols na partida:",
+    label: "Faixa de gols",
     points: 5,
-    options: ["0-2", "3-4", "5-6", "7+"]
+    options: ["0 a 1", "2 a 3", "4 a 5", "6+"]
   },
   {
     name: "resposta_primeiro_gol",
-    label: "Quem faz o primeiro gol?",
+    label: "Primeiro gol",
     points: 5,
-    options: ["Brasil", "Marrocos"]
+    options: ["Brasil", "Adversário"]
   },
   {
     name: "resposta_escanteios",
-    label: "Faixa de escanteios no jogo:",
+    label: "Escanteios",
     points: 5,
-    options: ["0-3", "4-6", "7-10", "11+"]
+    options: ["0 a 5", "6 a 10", "11+"]
   },
   {
     name: "resposta_cartoes",
-    label: "Faixa de cartões no jogo:",
+    label: "Cartões",
     points: 5,
-    options: ["0-2", "3-5", "6-8", "9+"]
+    options: ["0 a 2", "3 a 5", "6+"]
   }
 ];
 

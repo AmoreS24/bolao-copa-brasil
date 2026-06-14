@@ -11,11 +11,11 @@ type RankingBonusRequest = {
   resposta_cartoes?: string;
 };
 
-const RESULT_OPTIONS = new Set(["Brasil vence", "Marrocos vence", "Empate"]);
-const GOAL_OPTIONS = new Set(["0-2", "3-4", "5-6", "7+"]);
-const FIRST_GOAL_OPTIONS = new Set(["Brasil", "Marrocos"]);
-const CORNER_OPTIONS = new Set(["0-3", "4-6", "7-10", "11+"]);
-const CARD_OPTIONS = new Set(["0-2", "3-5", "6-8", "9+"]);
+const RESULT_OPTIONS = new Set(["Brasil vence", "Empate", "Brasil perde"]);
+const GOAL_OPTIONS = new Set(["0 a 1", "2 a 3", "4 a 5", "6+"]);
+const FIRST_GOAL_OPTIONS = new Set(["Brasil", "Adversário"]);
+const CORNER_OPTIONS = new Set(["0 a 5", "6 a 10", "11+"]);
+const CARD_OPTIONS = new Set(["0 a 2", "3 a 5", "6+"]);
 
 function isPaidStatus(status: unknown) {
   return status === "paid" || status === "pago";
