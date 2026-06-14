@@ -71,6 +71,17 @@ export type LiveRankingRoundDetail = LiveRankingBreakdown & {
   name: string;
 };
 
+export type LiveParticipantPerformance = {
+  name: string;
+  roundsPlayed: number;
+  confirmedGuesses: number;
+  winningGuesses: number;
+  totalInvested: number;
+  totalPrizesReceived: number;
+  bestRankingScore: number;
+  successRate: number;
+};
+
 export type ClosedRoundWinner = {
   id: string;
   name: string;
@@ -806,5 +817,63 @@ export async function getProfileSummary() {
     name: stringValue(profileRow, ["nome", "name"], "Participante"),
     phone: stringValue(profileRow, ["telefone", "phone", "whatsapp_phone"], ""),
     history
+  };
+}
+
+export async function getParticipantPerformance(): Promise<LiveParticipantPerformance | null> {
+  const supabase = getSupabaseServerClient() ?? getSupabaseServer();
+  const user = getCurrentUser();
+
+  if (!supabase || !user) {
+    return null;
+  }
+
+  const [{ data: profile }, { data: guesses }, { data: payments }, { data: prizes }, { data: rankingVotes }] = await Promise.all([
+    supabase.from("perfis").select("id,nome").eq("id", user.id).maybeSingle(),
+    supabase
+      .from("apostas")
+      .select("id,jogo_id,status,resultado_status")
+      .eq("perfil_id", user.id),
+    supabase
+      .from("pagamentos")
+      .select("id,valor_total,status")
+      .eq("perfil_id", user.id)
+      .in("status", PAID_PAYMENT_STATUSES),
+    supabase
+      .from("rodada_vencedores")
+      .select("valor_premio")
+      .eq("perfil_id", user.id),
+    supabase
+      .from("torcida_votos")
+      .select("pontos_total_rodada,pontos")
+      .eq("perfil_id", user.id)
+  ]);
+
+  const guessRows = (guesses ?? []) as DbRow[];
+  const confirmedGuesses = guessRows.filter((guess) => stringValue(guess, ["status"]) === "confirmed");
+  const winningGuesses = guessRows.filter((guess) => stringValue(guess, ["resultado_status"]) === "vencedor");
+  const roundsPlayed = new Set(confirmedGuesses.map((guess) => stringValue(guess, ["jogo_id"])).filter(Boolean)).size;
+  const totalInvested = ((payments ?? []) as DbRow[]).reduce(
+    (total, payment) => total + numberValue(payment, ["valor_total"], 0),
+    0
+  );
+  const totalPrizesReceived = ((prizes ?? []) as DbRow[]).reduce(
+    (total, prize) => total + numberValue(prize, ["valor_premio"], 0),
+    0
+  );
+  const bestRankingScore = ((rankingVotes ?? []) as DbRow[]).reduce(
+    (best, vote) => Math.max(best, numberValue(vote, ["pontos_total_rodada", "pontos"], 0)),
+    0
+  );
+
+  return {
+    name: stringValue((profile ?? {}) as DbRow, ["nome"], user.nome),
+    roundsPlayed,
+    confirmedGuesses: confirmedGuesses.length,
+    winningGuesses: winningGuesses.length,
+    totalInvested,
+    totalPrizesReceived,
+    bestRankingScore,
+    successRate: confirmedGuesses.length > 0 ? Math.round((winningGuesses.length / confirmedGuesses.length) * 100) : 0
   };
 }

@@ -1,4 +1,5 @@
 import { Flag, Goal, Trophy, Users } from "lucide-react";
+import Link from "next/link";
 import { MatchCard } from "@/components/match-card";
 import { PageShell, PrimaryLink, SectionTitle, StatCard } from "@/components/ui";
 import { getProfileSummary, getUpcomingMatches, getPrizeValue } from "@/data/supabase-live";
@@ -58,7 +59,15 @@ export default async function DashboardPage() {
         </div>
       </section>
       <section className="mt-10">
-        <SectionTitle eyebrow="Historico" title="Jogos em que participou" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <SectionTitle eyebrow="Historico" title="Jogos em que participou" />
+          <Link
+            href="/dashboard/desempenho"
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-brasil-blue px-5 font-black text-white shadow-field"
+          >
+            📊 Ver meu desempenho
+          </Link>
+        </div>
         <div className="overflow-hidden rounded-lg bg-white shadow-field">
           {profile.history.map((item, index) => (
             <div key={`${item.match}-${item.guess}-${index}`} className="grid gap-3 border-b border-slate-100 p-4 last:border-0">

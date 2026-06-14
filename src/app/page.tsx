@@ -43,6 +43,9 @@ export default async function Home() {
       ? "palpites em breve"
       : "palpites abertos";
   const roundLabel = match.status === "aberto" && latestClosedRound ? "Rodada 2 aberta" : match.group;
+  const nextBrazilMatch = upcomingBrazilMatches.find(
+    (nextMatch) => nextMatch.id !== match.id && new Date(nextMatch.startsAt).getTime() > new Date(match.startsAt).getTime()
+  );
 
   return (
     <>
@@ -164,32 +167,25 @@ export default async function Home() {
           </section>
         ) : null}
 
-        <section>
-          <SectionTitle eyebrow="Calendário" title="Próximos jogos do Brasil" />
-          <div className="grid gap-4 md:grid-cols-2">
-            {upcomingBrazilMatches.slice(1).map((nextMatch) => (
-              <article key={nextMatch.id} className="rounded-lg bg-white p-4 shadow-field md:p-5">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-brasil-green">{nextMatch.group}</p>
-                <h2 className="mt-1 text-2xl font-black text-brasil-navy">
-                  {countryWithFlag(nextMatch.homeTeam)} x {countryWithFlag(nextMatch.awayTeam)}
-                </h2>
-                <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600">
-                  <p>{nextMatch.dateLabel}, {nextMatch.timeLabel}</p>
-                  <p>{nextMatch.venue}{nextMatch.city ? `, ${nextMatch.city}` : ""}</p>
-                  <p>Status: {nextMatch.status === "encerrado" ? "encerrado" : nextMatch.status === "em_andamento" ? "palpites em breve" : "palpites abertos"}</p>
-                </div>
-                <div className="mt-4">
-                  <AuthGate redirectTo={`/jogos/${nextMatch.id}`} variant="compact">Apostar nesse jogo</AuthGate>
-                </div>
-              </article>
-            ))}
-            {upcomingBrazilMatches.length <= 1 ? (
-              <div className="rounded-lg bg-white p-4 font-semibold text-slate-600 shadow-field md:p-5">
-                Nenhum outro jogo futuro cadastrado no Supabase.
+        {nextBrazilMatch ? (
+          <section>
+            <SectionTitle eyebrow="Calendário" title="Próximo jogo após esta rodada" />
+            <article className="rounded-lg bg-white p-5 shadow-field md:p-6">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-brasil-green">{nextBrazilMatch.group}</p>
+              <h2 className="mt-1 text-2xl font-black text-brasil-navy">
+                {countryWithFlag(nextBrazilMatch.homeTeam)} x {countryWithFlag(nextBrazilMatch.awayTeam)}
+              </h2>
+              <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600">
+                <p>{nextBrazilMatch.dateLabel}</p>
+                <p>{nextBrazilMatch.venue}</p>
+                {nextBrazilMatch.city ? <p>{nextBrazilMatch.city}</p> : null}
               </div>
-            ) : null}
-          </div>
-        </section>
+              <p className="mt-4 inline-flex min-h-10 items-center rounded-full bg-brasil-light px-4 text-sm font-black text-brasil-navy">
+                Status: Aguardando abertura da rodada
+              </p>
+            </article>
+          </section>
+        ) : null}
 
         <section className="mt-6 grid gap-4 md:grid-cols-3">
           <StatCard icon={Trophy} label="Prêmio estimado da rodada" value={currency(match.exactPool)} tone="yellow" />

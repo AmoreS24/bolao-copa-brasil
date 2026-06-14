@@ -2,6 +2,8 @@ const COUNTRY_FLAGS: Record<string, string> = {
   alemanha: "🇩🇪",
   argentina: "🇦🇷",
   brasil: "🇧🇷",
+  escocia: "🏴",
+  escócia: "🏴",
   espanha: "🇪🇸",
   franca: "🇫🇷",
   frança: "🇫🇷",
