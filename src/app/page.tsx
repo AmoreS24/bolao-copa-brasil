@@ -32,11 +32,14 @@ export default async function Home() {
 
   const publicEntryValue = match.entryValue + match.operationalFee;
   const latestClosedRound = closedRounds[0];
+  const latestWinner = latestClosedRound?.winners[0];
+  const latestPaidTotal = latestClosedRound?.winners.reduce((total, winner) => total + winner.prizeValue, 0) ?? 0;
   const bettingStatusLabel = match.status === "encerrado"
     ? "encerrado"
     : match.status === "em_andamento"
       ? "palpites em breve"
       : "palpites abertos";
+  const roundLabel = match.status === "aberto" && latestClosedRound ? "Rodada 2 aberta" : match.group;
 
   return (
     <>
@@ -45,21 +48,22 @@ export default async function Home() {
         <div className="mx-auto flex min-h-[calc(100vh-76px)] max-w-5xl flex-col items-center justify-center gap-2 px-4 py-4 text-center text-white md:min-h-[640px] md:gap-3 md:py-6">
           <div className="relative z-10 w-full">
             <p className="mb-1 text-sm font-black uppercase tracking-[0.14em] text-brasil-yellow md:hidden">
-              {match.homeTeam} x {match.awayTeam}
+              {roundLabel}
+            </p>
+            <p className="mb-2 hidden text-sm font-black uppercase tracking-[0.14em] text-brasil-yellow md:block">
+              {roundLabel}
             </p>
             <h1 className="match-title mx-auto max-w-4xl font-sans text-4xl font-black uppercase leading-[0.98] tracking-wide sm:text-5xl md:text-[3.4rem]">
-              <span className="mr-2" aria-hidden>🇧🇷</span>
               <span className="text-brasil-yellow">{match.homeTeam}</span>
               <span className="mx-2 align-middle text-2xl text-white md:mx-4 md:text-4xl">x</span>
               <span className="text-white">{match.awayTeam}</span>
-              <span className="ml-2" aria-hidden>🇲🇦</span>
             </h1>
             <div className="mx-auto mt-3 flex max-w-3xl flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-sm font-bold text-white/90 sm:text-base">
               <p className="flex items-center gap-1.5">
                 <CalendarDays size={18} aria-hidden /> {match.dateLabel}, {match.timeLabel}
               </p>
               <p className="flex items-center gap-1.5 text-white/85">
-                <MapPin size={18} aria-hidden /> {match.venue}
+                <MapPin size={18} aria-hidden /> {match.venue}{match.city ? `, ${match.city}` : ""}
               </p>
               <p className="flex items-center gap-1.5">
                 <Trophy size={18} className="text-brasil-yellow" aria-hidden /> {match.competition}
@@ -77,7 +81,7 @@ export default async function Home() {
                 <p className="mt-1 text-xl font-black">{match.dateLabel}</p>
               </div>
               <div className="rounded-lg border border-brasil-yellow/45 bg-black/32 p-3 text-white shadow-field backdrop-blur">
-                <p className="text-xs font-black uppercase text-brasil-yellow">🏆 Prêmio estimado</p>
+                <p className="text-xs font-black uppercase text-brasil-yellow">🏆 Prêmio garantido</p>
                 <p className="mt-1 text-xl font-black">{currency(match.exactPool)}</p>
               </div>
               <div className="rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur">
@@ -137,7 +141,13 @@ export default async function Home() {
                 <div>
                   <p className="text-2xl font-black text-brasil-navy">🏆 Temos vencedor!</p>
                   <p className="mt-1 font-black text-brasil-green">Resultado oficial: {latestClosedRound.result}</p>
-                  <p className="mt-1 font-semibold text-slate-600">Confira os vencedores da rodada.</p>
+                  {latestWinner ? (
+                    <p className="mt-1 font-semibold text-slate-600">
+                      Última vencedora: {latestWinner.name}. {currency(latestPaidTotal)} pagos na rodada anterior.
+                    </p>
+                  ) : (
+                    <p className="mt-1 font-semibold text-slate-600">Confira os vencedores da rodada.</p>
+                  )}
                 </div>
               </div>
             )}
@@ -155,7 +165,7 @@ export default async function Home() {
                 </h2>
                 <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600">
                   <p>{nextMatch.dateLabel}, {nextMatch.timeLabel}</p>
-                  <p>{nextMatch.venue}</p>
+                  <p>{nextMatch.venue}{nextMatch.city ? `, ${nextMatch.city}` : ""}</p>
                   <p>Status: {nextMatch.status === "encerrado" ? "encerrado" : nextMatch.status === "em_andamento" ? "palpites em breve" : "palpites abertos"}</p>
                 </div>
                 <div className="mt-4">

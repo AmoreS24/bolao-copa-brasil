@@ -17,6 +17,7 @@ export type LiveMatch = {
   timeLabel: string;
   bettingClosesLabel: string;
   venue: string;
+  city: string;
   competition: string;
   group: string;
   entryValue: number;
@@ -274,7 +275,7 @@ function maskPhone(value: string) {
   return `${start}*****${end}`;
 }
 
-function matchFromRow(row: DbRow, confirmedGuesses: number, index = 0): LiveMatch {
+function matchFromRow(row: DbRow, confirmedGuesses: number, confirmedRevenue = 0, index = 0): LiveMatch {
   const homeTeam = stringValue(row, ["time_da_casa", "home_team", "mandante", "casa"], "Brasil");
   const awayTeam = stringValue(row, ["time_visitante", "away_team", "visitante", "adversario"], "Adversário");
   const status = stringValue(row, ["status_jogo"], "aberto") as LiveMatch["status"];
@@ -289,11 +290,11 @@ function matchFromRow(row: DbRow, confirmedGuesses: number, index = 0): LiveMatc
   const operationalFee = numberValue(row, ["taxa_operacional", "operational_fee"], OPERATIONAL_FEE);
   const guaranteedPrize = numberValue(row, ["premio_garantido"], MINIMUM_DISPLAY_PRIZE);
   const accumulatedPrize = numberValue(row, ["premio_acumulado"], 0);
-  const displayedPrizeTotal = numberValue(
-    row,
-    ["premio_total_exibido"],
-    Math.max(displayedPrize(confirmedGuesses, entryValue), guaranteedPrize + accumulatedPrize)
-  );
+  const calculatedPrize = guaranteedPrize + accumulatedPrize + confirmedRevenue * 0.6;
+  const storedPrizeTotal = optionalNumberValue(row, ["premio_total_exibido"]);
+  const displayedPrizeTotal = status === "encerrado"
+    ? storedPrizeTotal ?? Math.max(displayedPrize(confirmedGuesses, entryValue), calculatedPrize)
+    : Math.max(storedPrizeTotal ?? 0, displayedPrize(confirmedGuesses, entryValue), calculatedPrize);
   const finalHomeScore = optionalNumberValue(row, ["placar_casa_final"]);
   const finalAwayScore = optionalNumberValue(row, ["placar_visitante_final"]);
   const hasFinalResult = finalHomeScore !== null && finalAwayScore !== null;
@@ -310,6 +311,7 @@ function matchFromRow(row: DbRow, confirmedGuesses: number, index = 0): LiveMatc
     timeLabel: timeLabel(startsAt),
     bettingClosesLabel: shortTimeLabel(bettingClosesAt),
     venue: stringValue(row, ["local", "estadio", "venue"], "Estádio a confirmar"),
+    city: stringValue(row, ["cidade", "city"], ""),
     competition: stringValue(row, ["competicao", "competition"], DEFAULT_COMPETITION),
     group: stringValue(row, ["grupo", "group"], index === 0 ? "Próximo jogo" : "Jogo do Brasil"),
     entryValue,
@@ -359,6 +361,45 @@ export async function getConfirmedGuessesCount(matchId?: string) {
   return error ? 0 : count ?? 0;
 }
 
+async function getConfirmedRevenueForMatch(matchId: string) {
+  const supabase = getSupabaseServerClient() ?? getSupabaseServer();
+
+  if (!supabase) {
+    return 0;
+  }
+
+  const { data: betsData, error: betsError } = await supabase
+    .from("apostas")
+    .select("pagamento_id")
+    .eq("jogo_id", matchId)
+    .eq("status", "confirmed");
+
+  if (betsError) {
+    return 0;
+  }
+
+  const paymentIds = Array.from(new Set(((betsData ?? []) as DbRow[]).map((bet) => stringValue(bet, ["pagamento_id"])).filter(Boolean)));
+
+  if (paymentIds.length === 0) {
+    return 0;
+  }
+
+  const { data: paymentsData, error: paymentsError } = await supabase
+    .from("pagamentos")
+    .select("id,valor_total,status")
+    .in("id", paymentIds)
+    .in("status", PAID_PAYMENT_STATUSES);
+
+  if (paymentsError) {
+    return 0;
+  }
+
+  return ((paymentsData ?? []) as DbRow[]).reduce(
+    (total, payment) => total + numberValue(payment, ["valor_total"], 0),
+    0
+  );
+}
+
 export async function getUpcomingMatches() {
   const supabase = getSupabaseServer();
 
@@ -380,8 +421,11 @@ export async function getUpcomingMatches() {
   return Promise.all(
     rows.map(async (row, index) => {
       const id = stringValue(row, ["id", "slug"]);
-      const confirmedGuesses = await getConfirmedGuessesCount(id);
-      return matchFromRow(row, confirmedGuesses, index);
+      const [confirmedGuesses, confirmedRevenue] = await Promise.all([
+        getConfirmedGuessesCount(id),
+        getConfirmedRevenueForMatch(id)
+      ]);
+      return matchFromRow(row, confirmedGuesses, confirmedRevenue, index);
     })
   );
 }

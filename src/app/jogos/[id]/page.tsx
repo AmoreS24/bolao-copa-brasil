@@ -36,7 +36,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
                 <CalendarDays size={18} aria-hidden /> {match.dateLabel}, {match.timeLabel}
               </p>
               <p className="flex items-center gap-2">
-                <MapPin size={18} aria-hidden /> {match.venue}
+                <MapPin size={18} aria-hidden /> {match.venue}{match.city ? `, ${match.city}` : ""}
               </p>
             </div>
           </div>

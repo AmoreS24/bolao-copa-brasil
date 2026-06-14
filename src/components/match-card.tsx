@@ -30,7 +30,7 @@ export function MatchCard({ match }: { match: LiveMatch }) {
           <CalendarDays size={17} aria-hidden /> {match.dateLabel}, {match.timeLabel}
         </p>
         <p className="flex items-center gap-2">
-          <MapPin size={17} aria-hidden /> {match.venue}
+          <MapPin size={17} aria-hidden /> {match.venue}{match.city ? `, ${match.city}` : ""}
         </p>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-brasil-light p-3">
