@@ -2,7 +2,7 @@ import { Flag, Goal, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { MatchCard } from "@/components/match-card";
 import { PageShell, PrimaryLink, SectionTitle, StatCard } from "@/components/ui";
-import { getProfileSummary, getUpcomingMatches, getPrizeValue } from "@/data/supabase-live";
+import { getDashboardEngagement, getProfileSummary, getUpcomingMatches, getPrizeValue } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -22,12 +22,25 @@ function statusLabel(status: string) {
 }
 
 export default async function DashboardPage() {
-  const [matches, prize, profile] = await Promise.all([
+  const [matches, prize, profile, engagement] = await Promise.all([
     getUpcomingMatches(),
     getPrizeValue(),
-    getProfileSummary()
+    getProfileSummary(),
+    getDashboardEngagement()
   ]);
-  const nextMatch = matches[0];
+  const nextMatch = matches.find((match) => match.status === "aberto") ?? matches.find((match) => match.status !== "encerrado");
+  const daysUntilClose = engagement
+    ? Math.max(0, Math.ceil((new Date(engagement.bettingClosesAt).getTime() - Date.now()) / 86_400_000))
+    : 0;
+  const notices = engagement
+    ? [
+      `🏆 Rodada ${engagement.roundNumber} aberta`,
+      daysUntilClose === 0 ? "⏰ Apostas encerram hoje" : `⏰ Apostas encerram em ${daysUntilClose} ${daysUntilClose === 1 ? "dia" : "dias"}`,
+      engagement.needsRankingAnswer ? "🎯 Você ainda não respondeu o Ranking da Torcida" : "",
+      engagement.rankingPosition ? `📈 Você está em ${engagement.rankingPosition}º lugar no Ranking` : "",
+      `💰 Prêmio atual: ${currency(engagement.currentPrize)}`
+    ].filter(Boolean)
+    : [];
 
   return (
     <PageShell>
@@ -41,10 +54,20 @@ export default async function DashboardPage() {
         </div>
         <PrimaryLink href={nextMatch ? `/jogos/${nextMatch.id}` : "/"}>Participar do proximo jogo</PrimaryLink>
       </div>
+      {notices.length > 0 ? (
+        <section className="mb-6 rounded-lg border border-brasil-yellow/50 bg-white p-5 shadow-field">
+          <h2 className="text-xl font-black text-brasil-navy">🔔 Avisos</h2>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {notices.map((notice) => (
+              <p key={notice} className="rounded-lg bg-brasil-light px-4 py-3 font-black text-slate-700">{notice}</p>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <section className="grid gap-4 md:grid-cols-4">
-        <StatCard icon={Goal} label="Prêmio garantido" value={currency(prize)} />
+        <StatCard icon={Goal} label="Prêmio garantido" value={currency(engagement?.currentPrize ?? prize)} />
         <StatCard icon={Trophy} label="Ranking" value={currency(nextMatch?.rankingPool ?? 0)} tone="yellow" />
-        <StatCard icon={Users} label="Sua posicao" value="-" tone="blue" />
+        <StatCard icon={Users} label="Sua posicao" value={engagement?.rankingPosition ? `${engagement.rankingPosition}º` : "-"} tone="blue" />
         <StatCard icon={Flag} label="Palpites enviados" value={`${profile.history.length}`} />
       </section>
       <section className="mt-10">

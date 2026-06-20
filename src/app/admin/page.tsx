@@ -1,4 +1,4 @@
-import { Banknote, CheckCircle2, CircleDollarSign, Clock, Edit3, Percent, ReceiptText, Trophy, Users, Wallet } from "lucide-react";
+import { Banknote, BarChart3, CheckCircle2, CircleDollarSign, Clock, Edit3, Percent, ReceiptText, Trophy, UserPlus, Users, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
@@ -118,6 +118,16 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
             <p>Pagamentos confirmados: {stats.paymentsConfirmed}</p>
             <p>Pix pendentes: {stats.paymentsPending}</p>
           </div>
+        </div>
+      </section>
+      <section className="mt-8">
+        <SectionTitle eyebrow="Rodada atual" title="📊 Conversão da Rodada" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <StatCard icon={Users} label="Visitantes" value={`${stats.roundConversion.visitors}`} tone="blue" />
+          <StatCard icon={UserPlus} label="Cadastros" value={`${stats.roundConversion.signups}`} />
+          <StatCard icon={CheckCircle2} label="Pagamentos confirmados" value={`${stats.roundConversion.confirmedPayments}`} tone="yellow" />
+          <StatCard icon={Percent} label="Taxa cadastro" value={`${stats.roundConversion.signupRate}%`} />
+          <StatCard icon={BarChart3} label="Taxa conversão" value={`${stats.roundConversion.conversionRate}%`} tone="blue" />
         </div>
       </section>
       <section className="mt-10">

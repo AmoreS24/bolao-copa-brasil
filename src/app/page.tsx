@@ -1,5 +1,5 @@
 import { CalendarDays, Clock, Flame, MapPin, Trophy, Users, Wallet } from "lucide-react";
-import { getClosedRounds, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
+import { getClosedRounds, getGroupStandings, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 import { countryFlag, countryWithFlag } from "@/lib/countries";
 import { MatchCountdown } from "@/components/match-countdown";
@@ -7,6 +7,7 @@ import { AnimatedScoreboard } from "@/components/animated-scoreboard";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { RankingList } from "@/components/ranking-list";
 import { AuthGate } from "@/components/auth-gate";
+import { RoundVisitorTracker } from "@/components/round-visitor-tracker";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +15,12 @@ const CURRENT_ROUND_BASE_ENTRY = 10;
 const MINIMUM_CURRENT_ROUND_PRIZE = 200;
 
 export default async function Home() {
-  const [match, upcomingBrazilMatches, rankingPlayers, closedRounds] = await Promise.all([
+  const [match, upcomingBrazilMatches, rankingPlayers, closedRounds, groupStandings] = await Promise.all([
     getNextMatch(),
     getUpcomingMatches(),
     getRankingPlayers(10),
-    getClosedRounds()
+    getClosedRounds(),
+    getGroupStandings("Grupo C")
   ]);
 
   if (!match) {
@@ -46,16 +48,14 @@ export default async function Home() {
       ? "🔥 1 palpite confirmado nesta rodada"
       : `🔥 ${currentRoundConfirmedGuesses} palpites confirmados nesta rodada`;
   const latestClosedRound = closedRounds[0];
-  const latestWinner = latestClosedRound?.winners.find(
-    (winner) => winner.name.trim().toLowerCase() === "lidiane santos barreto"
-  ) ?? latestClosedRound?.winners[0];
   const latestPaidTotal = latestClosedRound?.winners.reduce((total, winner) => total + winner.prizeValue, 0) ?? 0;
   const bettingStatusLabel = match.status === "encerrado"
     ? "encerrado"
     : match.status === "em_andamento"
       ? "palpites em breve"
       : "palpites abertos";
-  const roundLabel = match.status === "aberto" && latestClosedRound ? "Rodada 2 aberta" : match.group;
+  const roundNumber = Math.max(upcomingBrazilMatches.findIndex((item) => item.id === match.id) + 1, 1);
+  const roundLabel = match.status === "aberto" ? `Rodada ${roundNumber} aberta` : match.group;
   const nextBrazilMatch = upcomingBrazilMatches.find(
     (nextMatch) => nextMatch.id !== match.id && new Date(nextMatch.startsAt).getTime() > new Date(match.startsAt).getTime()
   );
@@ -64,6 +64,7 @@ export default async function Home() {
 
   return (
     <>
+      {match.status === "aberto" ? <RoundVisitorTracker gameId={match.id} /> : null}
       <section className="stadium-hero">
         <div className="stadium-lights" aria-hidden />
         <div className="mx-auto flex min-h-[calc(100vh-76px)] max-w-5xl flex-col items-center justify-center gap-2 px-4 py-4 text-center text-white md:min-h-[640px] md:gap-3 md:py-6">
@@ -84,7 +85,7 @@ export default async function Home() {
                 <CalendarDays size={18} aria-hidden /> {match.dateLabel}, {match.timeLabel}
               </p>
               <p className="flex items-center gap-1.5 text-white/85">
-                <MapPin size={18} aria-hidden /> {match.venue}{match.city ? `, ${match.city}` : ""}
+                <MapPin size={18} aria-hidden /> {match.venue || "A confirmar"}{match.city ? ` – ${match.city}` : ""}
               </p>
               <p className="flex items-center gap-1.5">
                 <Trophy size={18} className="text-brasil-yellow" aria-hidden /> {match.competition}
@@ -145,8 +146,27 @@ export default async function Home() {
       </section>
 
       <PageShell>
+        <section className="mb-8">
+          <SectionTitle eyebrow="Grupo C" title="🏆 Classificação do Grupo C" />
+          <div className="overflow-hidden rounded-lg bg-white shadow-field">
+            <div className="grid grid-cols-[72px_1fr_72px] bg-brasil-navy px-4 py-3 text-xs font-black uppercase text-white">
+              <span>Posição</span>
+              <span>Seleção</span>
+              <span className="text-right">Pontos</span>
+            </div>
+            {groupStandings.map((standing) => (
+              <div key={standing.team} className="grid grid-cols-[72px_1fr_72px] items-center border-b border-slate-100 px-4 py-3 font-bold text-slate-700 last:border-0">
+                <span className="font-black text-brasil-green">{standing.position}º</span>
+                <span className="font-black text-brasil-navy">{countryWithFlag(standing.team)}</span>
+                <span className="text-right font-black">{standing.points}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {latestClosedRound ? (
           <section className="mb-8 rounded-lg bg-white p-5 shadow-field md:p-6">
+            <p className="mb-4 text-sm font-black uppercase text-brasil-green">🏆 Última rodada</p>
             {latestClosedRound.accumulated ? (
               <div className="grid gap-3 md:grid-cols-[auto_1fr] md:items-center">
                 <span className="grid h-12 w-12 place-items-center rounded-full bg-brasil-yellow text-brasil-navy">
@@ -168,15 +188,23 @@ export default async function Home() {
                 <div>
                   <p className="text-2xl font-black text-brasil-navy">🏆 Temos vencedor!</p>
                   <p className="mt-1 font-black text-brasil-green uppercase">Resultado oficial: {latestClosedRound.result}</p>
-                  {latestWinner ? (
+                  {latestClosedRound.winners.length > 0 ? (
                     <div className="mt-3 grid gap-2 font-semibold text-slate-600">
+                      <div>
+                        <p className="font-black text-brasil-navy">
+                          {latestClosedRound.winners.length > 1 ? "Vencedores:" : "Vencedor:"}
+                        </p>
+                        {latestClosedRound.winners.map((winner) => (
+                          <p key={winner.id} className="font-black uppercase text-brasil-navy">{winner.name}</p>
+                        ))}
+                      </div>
                       <p>
-                        Última vencedora:<br />
-                        <span className="font-black uppercase text-brasil-navy">{latestWinner.name}</span>
-                      </p>
-                      <p>
-                        Premiação paga:<br />
-                        <span className="font-black text-brasil-green">{currency(latestPaidTotal)}</span>
+                        {latestClosedRound.winners.length > 1 ? "Premiação dividida:" : "Premiação paga:"}<br />
+                        <span className="font-black text-brasil-green">
+                          {latestClosedRound.winners.length > 1
+                            ? `${currency(latestClosedRound.winners[0]?.prizeValue ?? 0)} para cada vencedor`
+                            : currency(latestPaidTotal)}
+                        </span>
                       </p>
                     </div>
                   ) : (

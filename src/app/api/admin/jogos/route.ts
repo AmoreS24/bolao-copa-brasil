@@ -102,7 +102,7 @@ export async function POST(request: Request) {
 
     const { error } = await supabase
       .from("jogos")
-      .update({ status_jogo: "aberto" })
+      .update({ status_jogo: "aberto", aberto_em: new Date().toISOString() })
       .eq("id", id);
 
     if (error) {
@@ -169,7 +169,8 @@ export async function POST(request: Request) {
     grupo: clean(body.grupo),
     premio_garantido: asNumber(body.premio_garantido, 200),
     premio_total_exibido: asNumber(body.premio_garantido, 200),
-    valor_palpite: asNumber(body.valor_palpite, 10)
+    valor_palpite: asNumber(body.valor_palpite, 10),
+    ...(status === "aberto" ? { aberto_em: new Date().toISOString() } : {})
   };
 
   const query = id

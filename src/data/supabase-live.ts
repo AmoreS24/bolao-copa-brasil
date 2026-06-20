@@ -100,6 +100,23 @@ export type ClosedRound = {
   winners: ClosedRoundWinner[];
 };
 
+export type GroupStanding = {
+  position: number;
+  team: string;
+  points: number;
+  goalDifference: number;
+  goalsFor: number;
+};
+
+export type DashboardEngagement = {
+  roundNumber: number;
+  matchId: string;
+  bettingClosesAt: string;
+  currentPrize: number;
+  rankingPosition: number | null;
+  needsRankingAnswer: boolean;
+};
+
 export type AdminBetFilter = "todos" | "confirmados" | "pendentes";
 
 export type AdminBetRow = {
@@ -168,6 +185,14 @@ export type AdminFinancialOverview = {
   averageTicket: number;
   rounds: AdminFinancialRoundRow[];
   expenses: AdminRoundExpense[];
+};
+
+export type AdminRoundConversion = {
+  visitors: number;
+  signups: number;
+  confirmedPayments: number;
+  signupRate: number;
+  conversionRate: number;
 };
 
 export type AdminRoundExpense = {
@@ -421,7 +446,7 @@ export async function getPrizeValue() {
 }
 
 export async function getConfirmedGuessesCount(matchId?: string) {
-  const supabase = getSupabaseServer();
+  const supabase = getSupabaseServerClient() ?? getSupabaseServer();
 
   if (!supabase) {
     return 0;
@@ -429,16 +454,39 @@ export async function getConfirmedGuessesCount(matchId?: string) {
 
   let query = supabase
     .from("apostas")
-    .select("id", { count: "exact", head: true })
+    .select("id,pagamento_id,status")
     .in("status", CONFIRMED_BET_STATUSES);
 
   if (matchId) {
     query = query.eq("jogo_id", matchId);
   }
 
-  const { count, error } = await query;
+  const { data: betsData, error } = await query;
 
-  return error ? 0 : count ?? 0;
+  if (error) {
+    return 0;
+  }
+
+  const bets = (betsData ?? []) as DbRow[];
+  const paymentIds = Array.from(new Set(bets.map((bet) => stringValue(bet, ["pagamento_id"])).filter(Boolean)));
+
+  if (paymentIds.length === 0) {
+    return 0;
+  }
+
+  const { data: paymentsData, error: paymentsError } = await supabase
+    .from("pagamentos")
+    .select("id")
+    .in("id", paymentIds)
+    .in("status", PAID_PAYMENT_STATUSES);
+
+  if (paymentsError) {
+    return 0;
+  }
+
+  const paidPaymentIds = new Set(((paymentsData ?? []) as DbRow[]).map((payment) => stringValue(payment, ["id"])));
+
+  return bets.filter((bet) => paidPaymentIds.has(stringValue(bet, ["pagamento_id"]))).length;
 }
 
 async function getConfirmedRevenueForMatch(matchId: string) {
@@ -521,6 +569,96 @@ export async function getNextMatch() {
 export async function getMatchById(id: string) {
   const matches = await getUpcomingMatches();
   return matches.find((match) => match.id === id || slugFromTeams(match.homeTeam, match.awayTeam) === id) ?? null;
+}
+
+export async function getGroupStandings(group = "Grupo C"): Promise<GroupStanding[]> {
+  const matches = (await getUpcomingMatches()).filter((match) => match.group.toLowerCase() === group.toLowerCase());
+  const table = new Map<string, Omit<GroupStanding, "position">>();
+
+  for (const match of matches) {
+    for (const team of [match.homeTeam, match.awayTeam]) {
+      if (!table.has(team)) {
+        table.set(team, { team, points: 0, goalDifference: 0, goalsFor: 0 });
+      }
+    }
+
+    if (!match.hasFinalResult || match.finalHomeScore === null || match.finalAwayScore === null) {
+      continue;
+    }
+
+    const home = table.get(match.homeTeam)!;
+    const away = table.get(match.awayTeam)!;
+    home.goalsFor += match.finalHomeScore;
+    away.goalsFor += match.finalAwayScore;
+    home.goalDifference += match.finalHomeScore - match.finalAwayScore;
+    away.goalDifference += match.finalAwayScore - match.finalHomeScore;
+
+    if (match.finalHomeScore === match.finalAwayScore) {
+      home.points += 1;
+      away.points += 1;
+    } else if (match.finalHomeScore > match.finalAwayScore) {
+      home.points += 3;
+    } else {
+      away.points += 3;
+    }
+  }
+
+  return Array.from(table.values())
+    .sort((a, b) => b.points - a.points || b.goalDifference - a.goalDifference || b.goalsFor - a.goalsFor || a.team.localeCompare(b.team))
+    .map((row, index) => ({ ...row, position: index + 1 }));
+}
+
+export async function getDashboardEngagement(): Promise<DashboardEngagement | null> {
+  const user = getCurrentUser();
+  const supabase = getSupabaseServerClient() ?? getSupabaseServer();
+  const matches = await getUpcomingMatches();
+  const openMatch = matches.find((match) => match.status === "aberto");
+
+  if (!user || !supabase || !openMatch) {
+    return null;
+  }
+
+  const roundNumber = Math.max(matches.findIndex((match) => match.id === openMatch.id) + 1, 1);
+  const currentPrize = Math.max(MINIMUM_DISPLAY_PRIZE, openMatch.confirmedGuesses * ENTRY_VALUE * 0.6);
+  const [{ data: betsData }, rankingPlayers] = await Promise.all([
+    supabase
+      .from("apostas")
+      .select("pagamento_id")
+      .eq("perfil_id", user.id)
+      .eq("jogo_id", openMatch.id)
+      .eq("status", "confirmed"),
+    getRankingPlayers(1000)
+  ]);
+  const paymentIds = Array.from(new Set(((betsData ?? []) as DbRow[]).map((bet) => stringValue(bet, ["pagamento_id"])).filter(Boolean)));
+  let hasConfirmedParticipation = false;
+
+  if (paymentIds.length > 0) {
+    const { count } = await supabase
+      .from("pagamentos")
+      .select("id", { count: "exact", head: true })
+      .in("id", paymentIds)
+      .in("status", PAID_PAYMENT_STATUSES);
+    hasConfirmedParticipation = (count ?? 0) > 0;
+  }
+
+  const { data: vote } = hasConfirmedParticipation
+    ? await supabase
+      .from("torcida_votos")
+      .select("id")
+      .eq("perfil_id", user.id)
+      .eq("jogo_id", openMatch.id)
+      .maybeSingle()
+    : { data: null };
+  const rankingIndex = rankingPlayers.findIndex((player) => player.profileId === user.id);
+
+  return {
+    roundNumber,
+    matchId: openMatch.id,
+    bettingClosesAt: openMatch.bettingClosesAt,
+    currentPrize,
+    rankingPosition: rankingIndex >= 0 ? rankingIndex + 1 : null,
+    needsRankingAnswer: hasConfirmedParticipation && !vote
+  };
 }
 
 export async function getRankingPlayers(limit = 10): Promise<LiveRankingPlayer[]> {
@@ -681,6 +819,13 @@ export async function getAdminStats() {
       topAffiliates: [] as AdminAffiliateRow[],
       originAnalytics: [] as AdminOriginAnalyticsRow[],
       rankingMatches: [] as AdminRankingMatch[],
+      roundConversion: {
+        visitors: 0,
+        signups: 0,
+        confirmedPayments: 0,
+        signupRate: 0,
+        conversionRate: 0
+      } as AdminRoundConversion,
       inviteTools: {
         currentMatch: null,
         participants: []
@@ -1042,6 +1187,53 @@ export async function getAdminStats() {
     };
   });
 
+  const activeMatch = matches.find((match) => match.status === "aberto") ?? null;
+  let roundConversion: AdminRoundConversion = {
+    visitors: 0,
+    signups: 0,
+    confirmedPayments: 0,
+    signupRate: 0,
+    conversionRate: 0
+  };
+
+  if (activeMatch) {
+    const { data: activeGameData } = await supabase
+      .from("jogos")
+      .select("aberto_em")
+      .eq("id", activeMatch.id)
+      .maybeSingle();
+    const fallbackOpenedAt = matches
+      .filter((match) => match.status === "encerrado" && new Date(match.startsAt).getTime() < new Date(activeMatch.startsAt).getTime())
+      .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())[0]?.startsAt;
+    const openedAt = stringValue((activeGameData ?? {}) as DbRow, ["aberto_em"], fallbackOpenedAt ?? "");
+    const currentRoundPaymentIds = new Set(
+      allConfirmedBets
+        .filter((bet) => stringValue(bet, ["jogo_id"]) === activeMatch.id)
+        .map((bet) => stringValue(bet, ["pagamento_id"]))
+        .filter((paymentId) => paidPaymentsById.has(paymentId))
+    );
+    const [visitorsResult, signupsResult] = await Promise.all([
+      supabase
+        .from("rodada_visitantes")
+        .select("id", { count: "exact", head: true })
+        .eq("jogo_id", activeMatch.id),
+      openedAt
+        ? supabase.from("perfis").select("id", { count: "exact", head: true }).gte("criado_em", openedAt)
+        : Promise.resolve({ count: 0 })
+    ]);
+    const visitors = visitorsResult.error ? 0 : visitorsResult.count ?? 0;
+    const signups = signupsResult.count ?? 0;
+    const confirmedPayments = currentRoundPaymentIds.size;
+
+    roundConversion = {
+      visitors,
+      signups,
+      confirmedPayments,
+      signupRate: visitors > 0 ? Number(((signups / visitors) * 100).toFixed(1)) : 0,
+      conversionRate: signups > 0 ? Number(((confirmedPayments / signups) * 100).toFixed(1)) : 0
+    };
+  }
+
   return {
     matches,
     prize,
@@ -1054,6 +1246,7 @@ export async function getAdminStats() {
     topAffiliates,
     originAnalytics,
     rankingMatches,
+    roundConversion,
     inviteTools,
     financial
   };
