@@ -1,6 +1,7 @@
 import { CalendarDays, MapPin, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { currency } from "@/lib/utils";
+import { countryWithFlag } from "@/lib/countries";
 import type { LiveMatch } from "@/data/supabase-live";
 
 export function MatchCard({ match }: { match: LiveMatch }) {
@@ -20,7 +21,7 @@ export function MatchCard({ match }: { match: LiveMatch }) {
         <div>
           <p className="text-sm font-black uppercase text-brasil-green">{statusLabel}</p>
           <h3 className="text-xl font-black text-brasil-navy">
-            {match.homeTeam} x {match.awayTeam}
+            {countryWithFlag(match.homeTeam)} x {countryWithFlag(match.awayTeam)}
           </h3>
         </div>
         <span className="grid h-12 w-12 place-items-center rounded-full bg-brasil-yellow text-brasil-blue">
