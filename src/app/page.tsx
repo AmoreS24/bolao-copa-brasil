@@ -12,7 +12,7 @@ import { RoundVisitorTracker } from "@/components/round-visitor-tracker";
 export const dynamic = "force-dynamic";
 
 const CURRENT_ROUND_BASE_ENTRY = 10;
-const MINIMUM_CURRENT_ROUND_PRIZE = 200;
+const ROUND_THREE_MINIMUM_PRIZE = 250;
 
 export default async function Home() {
   const [match, upcomingBrazilMatches, rankingPlayers, closedRounds, groupStandings] = await Promise.all([
@@ -37,9 +37,11 @@ export default async function Home() {
   }
 
   const publicEntryValue = match.entryValue + match.operationalFee;
+  const roundNumber = Math.max(upcomingBrazilMatches.findIndex((item) => item.id === match.id) + 1, 1);
+  const currentMinimumPrize = roundNumber === 3 ? ROUND_THREE_MINIMUM_PRIZE : match.guaranteedPrize;
   const currentRoundConfirmedGuesses = match.status === "aberto" ? match.confirmedGuesses : 0;
   const currentRoundPrize = Math.max(
-    MINIMUM_CURRENT_ROUND_PRIZE,
+    currentMinimumPrize,
     currentRoundConfirmedGuesses * CURRENT_ROUND_BASE_ENTRY * 0.6
   );
   const socialProofText = currentRoundConfirmedGuesses === 0
@@ -54,7 +56,6 @@ export default async function Home() {
     : match.status === "em_andamento"
       ? "palpites em breve"
       : "palpites abertos";
-  const roundNumber = Math.max(upcomingBrazilMatches.findIndex((item) => item.id === match.id) + 1, 1);
   const roundLabel = match.status === "aberto" ? `Rodada ${roundNumber} aberta` : match.group;
   const nextBrazilMatch = upcomingBrazilMatches.find(
     (nextMatch) => nextMatch.id !== match.id && new Date(nextMatch.startsAt).getTime() > new Date(match.startsAt).getTime()
@@ -105,7 +106,7 @@ export default async function Home() {
               <div className="rounded-lg border border-brasil-yellow/45 bg-black/32 p-3 text-white shadow-field backdrop-blur">
                 <p className="text-xs font-black uppercase text-brasil-yellow">🏆 Prêmio atual</p>
                 <p className="mt-1 text-xl font-black">{currency(currentRoundPrize)}</p>
-                <p className="mt-1 text-[11px] font-bold text-white/80">mínimo garantido de R$ 200,00</p>
+                <p className="mt-1 text-[11px] font-bold text-white/80">mínimo garantido de {currency(currentMinimumPrize)}</p>
               </div>
               <div className="rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur">
                 <p className="text-xs font-black uppercase text-brasil-yellow">💰 Cada palpite</p>
@@ -242,7 +243,7 @@ export default async function Home() {
           <StatCard icon={Users} label="Palpites nesta rodada" value={`${currentRoundConfirmedGuesses}`} tone="blue" />
         </section>
         <p className="mt-3 rounded-lg bg-white p-4 text-sm font-black text-brasil-navy shadow-field">
-          Prêmio atual calculado apenas pela rodada aberta, com mínimo garantido de R$ 200,00.
+          Prêmio atual calculado apenas pela rodada aberta, com mínimo garantido de {currency(currentMinimumPrize)}.
         </p>
 
         <section className="mt-10 grid gap-8 md:grid-cols-[0.95fr_1.05fr] md:items-start">

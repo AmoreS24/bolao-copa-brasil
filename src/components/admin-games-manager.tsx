@@ -66,6 +66,13 @@ function toInputDate(value: string) {
   return parts.replace(" ", "T");
 }
 
+function guaranteedPrizeForGame(game: LiveMatch) {
+  const isRoundThree = game.homeTeam.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === "escocia"
+    && game.awayTeam.trim().toLowerCase() === "brasil";
+
+  return isRoundThree ? Math.max(250, game.guaranteedPrize) : game.guaranteedPrize || 200;
+}
+
 function formFromGame(game: LiveMatch): GameFormState {
   return {
     id: game.id,
@@ -75,7 +82,7 @@ function formFromGame(game: LiveMatch): GameFormState {
     local: game.venue === "Estádio a confirmar" ? "" : game.venue,
     cidade: game.city,
     grupo: game.group,
-    premio_garantido: String(game.guaranteedPrize || 200),
+    premio_garantido: String(guaranteedPrizeForGame(game)),
     valor_palpite: String(game.entryValue || 10),
     status_jogo: game.status === "aberto" || game.status === "encerrado" ? game.status : "aguardando"
   };
@@ -319,7 +326,7 @@ export function AdminGamesManager({ games }: AdminGamesManagerProps) {
                   <td className="px-4 py-3 font-black text-brasil-green">
                     {statusLabels[game.status === "aberto" || game.status === "encerrado" ? game.status : "aguardando"]}
                   </td>
-                  <td className="px-4 py-3">{currency(game.guaranteedPrize)}</td>
+                  <td className="px-4 py-3">{currency(guaranteedPrizeForGame(game))}</td>
                   <td className="px-4 py-3">{currency(game.entryValue)}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">

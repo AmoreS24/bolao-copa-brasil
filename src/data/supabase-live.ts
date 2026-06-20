@@ -619,7 +619,8 @@ export async function getDashboardEngagement(): Promise<DashboardEngagement | nu
   }
 
   const roundNumber = Math.max(matches.findIndex((match) => match.id === openMatch.id) + 1, 1);
-  const currentPrize = Math.max(MINIMUM_DISPLAY_PRIZE, openMatch.confirmedGuesses * ENTRY_VALUE * 0.6);
+  const currentMinimumPrize = roundNumber === 3 ? 250 : openMatch.guaranteedPrize;
+  const currentPrize = Math.max(currentMinimumPrize, openMatch.confirmedGuesses * ENTRY_VALUE * 0.6);
   const [{ data: betsData }, rankingPlayers] = await Promise.all([
     supabase
       .from("apostas")
