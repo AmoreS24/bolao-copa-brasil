@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CheckCircle2, Radio, Trophy } from "lucide-react";
+import { CheckCircle2, Radio, Share2, Trophy } from "lucide-react";
 import { CopyPixButton } from "@/components/copy-pix-button";
 import { SUPPORT_WHATSAPP_URL } from "@/lib/support";
 import { currency } from "@/lib/utils";
 
 type GuessSummary = {
   id: string;
+  score: string;
   label: string;
 };
 
@@ -24,6 +25,8 @@ type PaymentStatusPanelProps = {
   fee: number;
   total: number;
   guesses: GuessSummary[];
+  currentPrize: number;
+  shareLink: string;
 };
 
 type PaymentStatusResponse = {
@@ -52,7 +55,9 @@ export function PaymentStatusPanel({
   subtotal,
   fee,
   total,
-  guesses
+  guesses,
+  currentPrize,
+  shareLink
 }: PaymentStatusPanelProps) {
   const [paid, setPaid] = useState(initialPaid);
   const [rankingAnswered, setRankingAnswered] = useState(initialRankingAnswered);
@@ -109,6 +114,10 @@ export function PaymentStatusPanel({
   }, [paid, paymentId]);
 
   if (paid) {
+    const confirmedScores = guesses.map((guess) => guess.score).join(", ");
+    const shareText = `Meu palpite já está confirmado no Bolão Jogos do Brasil! 🇧🇷⚽\n\n${matchTitle}\nMeu palpite: ${confirmedScores}\n\nPrêmio atual: ${currency(currentPrize)}\n\nParticipe também:\n${shareLink}`;
+    const whatsappShareUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+
     return (
       <div className="grid gap-5">
         <div className="rounded-lg bg-brasil-green p-6 text-center text-white shadow-field md:p-8">
@@ -117,6 +126,15 @@ export function PaymentStatusPanel({
           <p className="mx-auto mt-3 max-w-xl text-lg font-semibold text-white/90">
             Agora você já está concorrendo ao prêmio da rodada.
           </p>
+          <a
+            href={whatsappShareUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mx-auto mt-5 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-6 font-black text-brasil-green shadow-field"
+          >
+            <Share2 size={19} aria-hidden />
+            📲 Compartilhar meu palpite
+          </a>
         </div>
 
         <div className="rounded-lg border border-brasil-yellow/50 bg-brasil-navy p-5 text-white shadow-field md:p-6">

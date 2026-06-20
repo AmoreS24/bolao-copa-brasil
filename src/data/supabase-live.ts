@@ -103,9 +103,20 @@ export type ClosedRound = {
 export type GroupStanding = {
   position: number;
   team: string;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
   points: number;
   goalDifference: number;
   goalsFor: number;
+};
+
+export type HallOfFamePlayer = {
+  id: string;
+  name: string;
+  wins: number;
+  totalPrizes: number;
 };
 
 export type DashboardEngagement = {
@@ -573,32 +584,57 @@ export async function getMatchById(id: string) {
 
 export async function getGroupStandings(group = "Grupo C"): Promise<GroupStanding[]> {
   const matches = (await getUpcomingMatches()).filter((match) => match.group.toLowerCase() === group.toLowerCase());
-  const table = new Map<string, Omit<GroupStanding, "position">>();
+  const isGroupC = group.trim().toLowerCase() === "grupo c";
+  const roundTwoBaseline: Array<Omit<GroupStanding, "position">> = isGroupC
+    ? [
+      { team: "Brasil", played: 2, wins: 1, draws: 1, losses: 0, goalDifference: 3, goalsFor: 4, points: 4 },
+      { team: "Marrocos", played: 2, wins: 1, draws: 1, losses: 0, goalDifference: 1, goalsFor: 2, points: 4 },
+      { team: "Escócia", played: 2, wins: 1, draws: 0, losses: 1, goalDifference: 0, goalsFor: 2, points: 3 },
+      { team: "Haiti", played: 2, wins: 0, draws: 0, losses: 2, goalDifference: -4, goalsFor: 1, points: 0 }
+    ]
+    : [];
+  const table = new Map<string, Omit<GroupStanding, "position">>(roundTwoBaseline.map((row) => [row.team, { ...row }]));
+  const matchesToApply = isGroupC
+    ? matches.filter((match) => new Date(match.startsAt).getTime() >= new Date("2026-06-24T00:00:00-03:00").getTime())
+    : matches;
 
-  for (const match of matches) {
-    for (const team of [match.homeTeam, match.awayTeam]) {
-      if (!table.has(team)) {
-        table.set(team, { team, points: 0, goalDifference: 0, goalsFor: 0 });
-      }
+  function rowFor(team: string) {
+    const existingKey = Array.from(table.keys()).find((key) => key.localeCompare(team, "pt-BR", { sensitivity: "base" }) === 0);
+    const key = existingKey ?? team;
+
+    if (!table.has(key)) {
+      table.set(key, { team, played: 0, wins: 0, draws: 0, losses: 0, points: 0, goalDifference: 0, goalsFor: 0 });
     }
 
+    return table.get(key)!;
+  }
+
+  for (const match of matchesToApply) {
     if (!match.hasFinalResult || match.finalHomeScore === null || match.finalAwayScore === null) {
       continue;
     }
 
-    const home = table.get(match.homeTeam)!;
-    const away = table.get(match.awayTeam)!;
+    const home = rowFor(match.homeTeam);
+    const away = rowFor(match.awayTeam);
+    home.played += 1;
+    away.played += 1;
     home.goalsFor += match.finalHomeScore;
     away.goalsFor += match.finalAwayScore;
     home.goalDifference += match.finalHomeScore - match.finalAwayScore;
     away.goalDifference += match.finalAwayScore - match.finalHomeScore;
 
     if (match.finalHomeScore === match.finalAwayScore) {
+      home.draws += 1;
+      away.draws += 1;
       home.points += 1;
       away.points += 1;
     } else if (match.finalHomeScore > match.finalAwayScore) {
+      home.wins += 1;
+      away.losses += 1;
       home.points += 3;
     } else {
+      away.wins += 1;
+      home.losses += 1;
       away.points += 3;
     }
   }
@@ -801,6 +837,36 @@ export async function getClosedRounds(): Promise<ClosedRound[]> {
       winners
     };
   });
+}
+
+export async function getHallOfFame(): Promise<HallOfFamePlayer[]> {
+  const supabase = getSupabaseServerClient() ?? getSupabaseServer();
+
+  if (!supabase) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("rodada_vencedores")
+    .select("id,perfil_id,nome,valor_premio");
+
+  if (error) {
+    return [];
+  }
+
+  const players = new Map<string, HallOfFamePlayer>();
+
+  for (const winner of (data ?? []) as DbRow[]) {
+    const name = stringValue(winner, ["nome"], "Vencedor");
+    const key = stringValue(winner, ["perfil_id"], name.trim().toLowerCase());
+    const current = players.get(key) ?? { id: key, name, wins: 0, totalPrizes: 0 };
+    current.wins += 1;
+    current.totalPrizes += numberValue(winner, ["valor_premio"], 0);
+    players.set(key, current);
+  }
+
+  return Array.from(players.values())
+    .sort((a, b) => b.wins - a.wins || b.totalPrizes - a.totalPrizes || a.name.localeCompare(b.name));
 }
 
 export async function getAdminStats() {

@@ -100,8 +100,17 @@ export default async function PaymentPage({
       .maybeSingle()
     : { data: null };
   const matchTitle = match ? `${match.homeTeam} x ${match.awayTeam}` : "Jogo do Brasil";
+  const isRoundThree = match?.homeTeam.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === "escocia"
+    && match?.awayTeam.trim().toLowerCase() === "brasil";
+  const currentMinimumPrize = isRoundThree ? 250 : match?.guaranteedPrize ?? 250;
+  const currentPrize = Math.max(currentMinimumPrize, (match?.confirmedGuesses ?? 0) * 10 * 0.6);
+  const originRef = asString(paymentRow.origem_ref);
+  const shareLink = originRef
+    ? `https://bolao-copa-brasil.vercel.app?ref=${encodeURIComponent(originRef)}`
+    : "https://bolao-copa-brasil.vercel.app";
   const guessSummary = guessRows.map((guess, index) => ({
     id: asString(guess.id) || String(index),
+    score: `${asNumber(guess.gols_brasil)} x ${asNumber(guess.gols_adversario)}`,
     label: `${match?.homeTeam ?? "Brasil"} ${asNumber(guess.gols_brasil)}x${asNumber(guess.gols_adversario)} ${match?.awayTeam ?? "Adversário"}`
   }));
 
@@ -121,6 +130,8 @@ export default async function PaymentPage({
           fee={fee}
           total={total}
           guesses={guessSummary}
+          currentPrize={currentPrize}
+          shareLink={shareLink}
         />
       </section>
     </PageShell>

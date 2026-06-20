@@ -1,12 +1,12 @@
 import { Flame, Trophy } from "lucide-react";
 import { PageShell, SectionTitle } from "@/components/ui";
-import { getClosedRounds } from "@/data/supabase-live";
+import { getClosedRounds, getHallOfFame } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function WinnersPage() {
-  const rounds = await getClosedRounds();
+  const [rounds, hallOfFame] = await Promise.all([getClosedRounds(), getHallOfFame()]);
 
   return (
     <PageShell>
@@ -17,6 +17,27 @@ export default async function WinnersPage() {
           Confira os ganhadores e resultados das rodadas anteriores.
         </p>
       </div>
+
+      <section className="mb-8">
+        <SectionTitle eyebrow="Campeões" title="🏆 Hall da Fama" />
+        <div className="overflow-hidden rounded-lg bg-white shadow-field">
+          <div className="grid grid-cols-[1fr_90px_130px] bg-brasil-navy px-4 py-3 text-xs font-black uppercase text-white">
+            <span>Nome</span>
+            <span className="text-center">Acertos</span>
+            <span className="text-right">Total recebido</span>
+          </div>
+          {hallOfFame.map((player) => (
+            <div key={player.id} className="grid grid-cols-[1fr_90px_130px] items-center border-b border-slate-100 px-4 py-3 text-sm font-bold text-slate-700 last:border-0">
+              <span className="font-black text-brasil-navy">{player.name}</span>
+              <span className="text-center font-black text-brasil-green">{player.wins}</span>
+              <span className="text-right font-black text-brasil-green">{currency(player.totalPrizes)}</span>
+            </div>
+          ))}
+          {hallOfFame.length === 0 ? (
+            <p className="p-4 font-semibold text-slate-600">O Hall da Fama será preenchido após a primeira premiação.</p>
+          ) : null}
+        </div>
+      </section>
 
       <section className="grid gap-4">
         {rounds.map((round) => (

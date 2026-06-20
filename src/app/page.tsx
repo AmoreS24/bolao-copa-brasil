@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 
 const CURRENT_ROUND_BASE_ENTRY = 10;
 const ROUND_THREE_MINIMUM_PRIZE = 250;
+const ROUND_GUESS_GOAL = 50;
 
 export default async function Home() {
   const [match, upcomingBrazilMatches, rankingPlayers, closedRounds, groupStandings] = await Promise.all([
@@ -49,6 +50,8 @@ export default async function Home() {
     : currentRoundConfirmedGuesses === 1
       ? "🔥 1 palpite confirmado nesta rodada"
       : `🔥 ${currentRoundConfirmedGuesses} palpites confirmados nesta rodada`;
+  const goalProgress = Math.min(100, Math.round((currentRoundConfirmedGuesses / ROUND_GUESS_GOAL) * 100));
+  const goalReached = currentRoundConfirmedGuesses >= ROUND_GUESS_GOAL;
   const latestClosedRound = closedRounds[0];
   const latestPaidTotal = latestClosedRound?.winners.reduce((total, winner) => total + winner.prizeValue, 0) ?? 0;
   const bettingStatusLabel = match.status === "encerrado"
@@ -125,9 +128,23 @@ export default async function Home() {
                 Status: {bettingStatusLabel}
               </p>
               {match.status === "aberto" ? (
-                <p className="mx-auto mt-2 max-w-lg rounded-full border border-brasil-yellow/40 bg-black/24 px-4 py-2 text-sm font-black text-brasil-yellow shadow-field backdrop-blur">
-                  {socialProofText}
-                </p>
+                <div className="mx-auto mt-2 grid max-w-lg gap-2">
+                  <p className="rounded-full border border-brasil-yellow/40 bg-black/24 px-4 py-2 text-sm font-black text-brasil-yellow shadow-field backdrop-blur">
+                    {socialProofText}
+                  </p>
+                  <div className="rounded-lg border border-white/20 bg-black/28 px-4 py-3 text-left shadow-field backdrop-blur">
+                    <div className="flex items-center justify-between gap-3 text-xs font-black uppercase text-white">
+                      <span>🎯 Meta da Rodada</span>
+                      <span>{goalReached ? "Meta batida!" : `${goalProgress}%`}</span>
+                    </div>
+                    <p className="mt-1 text-sm font-bold text-white/85">
+                      {currentRoundConfirmedGuesses} de {ROUND_GUESS_GOAL} palpites confirmados
+                    </p>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20">
+                      <div className="h-full rounded-full bg-brasil-yellow transition-[width]" style={{ width: `${goalProgress}%` }} />
+                    </div>
+                  </div>
+                </div>
               ) : null}
             </div>
           </div>
@@ -149,19 +166,35 @@ export default async function Home() {
       <PageShell>
         <section className="mb-8">
           <SectionTitle eyebrow="Grupo C" title="🏆 Classificação do Grupo C" />
-          <div className="overflow-hidden rounded-lg bg-white shadow-field">
-            <div className="grid grid-cols-[72px_1fr_72px] bg-brasil-navy px-4 py-3 text-xs font-black uppercase text-white">
-              <span>Posição</span>
-              <span>Seleção</span>
-              <span className="text-right">Pontos</span>
-            </div>
-            {groupStandings.map((standing) => (
-              <div key={standing.team} className="grid grid-cols-[72px_1fr_72px] items-center border-b border-slate-100 px-4 py-3 font-bold text-slate-700 last:border-0">
-                <span className="font-black text-brasil-green">{standing.position}º</span>
-                <span className="font-black text-brasil-navy">{countryWithFlag(standing.team)}</span>
-                <span className="text-right font-black">{standing.points}</span>
-              </div>
-            ))}
+          <div className="overflow-x-auto rounded-lg bg-white shadow-field">
+            <table className="min-w-[720px] w-full text-left text-sm">
+              <thead className="bg-brasil-navy text-xs font-black uppercase text-white">
+                <tr>
+                  <th className="px-4 py-3">Posição</th>
+                  <th className="px-4 py-3">Seleção</th>
+                  <th className="px-3 py-3 text-center">PJ</th>
+                  <th className="px-3 py-3 text-center">VIT</th>
+                  <th className="px-3 py-3 text-center">E</th>
+                  <th className="px-3 py-3 text-center">DER</th>
+                  <th className="px-3 py-3 text-center">SG</th>
+                  <th className="px-4 py-3 text-right">PTS</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {groupStandings.map((standing) => (
+                  <tr key={standing.team} className="font-bold text-slate-700">
+                    <td className="px-4 py-3 font-black text-brasil-green">{standing.position}º</td>
+                    <td className="px-4 py-3 font-black text-brasil-navy">{countryWithFlag(standing.team)}</td>
+                    <td className="px-3 py-3 text-center">{standing.played}</td>
+                    <td className="px-3 py-3 text-center">{standing.wins}</td>
+                    <td className="px-3 py-3 text-center">{standing.draws}</td>
+                    <td className="px-3 py-3 text-center">{standing.losses}</td>
+                    <td className="px-3 py-3 text-center">{standing.goalDifference}</td>
+                    <td className="px-4 py-3 text-right font-black">{standing.points}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
 
@@ -245,6 +278,22 @@ export default async function Home() {
         <p className="mt-3 rounded-lg bg-white p-4 text-sm font-black text-brasil-navy shadow-field">
           Prêmio atual calculado apenas pela rodada aberta, com mínimo garantido de {currency(currentMinimumPrize)}.
         </p>
+
+        <section className="mt-6 rounded-lg bg-white p-5 shadow-field md:p-6">
+          <h2 className="text-xl font-black text-brasil-navy">💰 Simulação da premiação</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {[
+              ["Prêmio atual", currentRoundPrize],
+              ["Com 50 palpites", Math.max(currentMinimumPrize, 50 * CURRENT_ROUND_BASE_ENTRY * 0.6)],
+              ["Com 100 palpites", Math.max(currentMinimumPrize, 100 * CURRENT_ROUND_BASE_ENTRY * 0.6)]
+            ].map(([label, value]) => (
+              <div key={String(label)} className="rounded-lg bg-brasil-light p-4">
+                <p className="text-sm font-bold text-slate-500">{label}</p>
+                <p className="mt-1 text-2xl font-black text-brasil-green">{currency(Number(value))}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section className="mt-10 grid gap-8 md:grid-cols-[0.95fr_1.05fr] md:items-start">
           <div>
