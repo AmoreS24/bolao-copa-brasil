@@ -43,12 +43,21 @@ function goalRange(totalGoals: number) {
   return "6+";
 }
 
-function resultFromScore(finalHome: number, finalAway: number) {
-  if (finalHome > finalAway) {
+function resultFromScore(finalHome: number, finalAway: number, homeTeam: string, awayTeam: string) {
+  const brazilIsHome = homeTeam.trim().toLowerCase() === "brasil";
+  const brazilIsAway = awayTeam.trim().toLowerCase() === "brasil";
+  const brazilScore = brazilIsAway ? finalAway : finalHome;
+  const opponentScore = brazilIsAway ? finalHome : finalAway;
+
+  if (!brazilIsHome && !brazilIsAway) {
+    return finalHome === finalAway ? "Empate" : "Brasil perde";
+  }
+
+  if (brazilScore > opponentScore) {
     return "Brasil vence";
   }
 
-  if (finalHome < finalAway) {
+  if (brazilScore < opponentScore) {
     return "Brasil perde";
   }
 
@@ -87,7 +96,7 @@ export async function POST(request: Request) {
 
   const { data: game, error: gameError } = await supabase
     .from("jogos")
-    .select("id,placar_casa_final,placar_visitante_final")
+    .select("id,time_da_casa,time_visitante,placar_casa_final,placar_visitante_final")
     .eq("id", gameId)
     .maybeSingle();
 
@@ -106,7 +115,7 @@ export async function POST(request: Request) {
   }
 
   const officialGoalRange = goalRange(finalHome + finalAway);
-  const officialResult = resultFromScore(finalHome, finalAway);
+  const officialResult = resultFromScore(finalHome, finalAway, game.time_da_casa, game.time_visitante);
   const { data: votesData, error: votesError } = await supabase
     .from("torcida_votos")
     .select("id,perfil_id,pontos,pontos_total_rodada,resposta_resultado,resposta_gols,resposta_primeiro_gol,resposta_escanteios,resposta_cartoes")
