@@ -1,5 +1,5 @@
-import { CalendarDays, Clock, Flame, MapPin, Trophy, Users, Wallet } from "lucide-react";
-import { getClosedRounds, getGroupStandings, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
+import { CalendarDays, CircleDollarSign, Clock, Flame, MapPin, MessageCircle, Trophy, Users, Wallet } from "lucide-react";
+import { getClosedRounds, getGroupStandings, getHomeSocialProof, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 import { countryFlag, countryWithFlag } from "@/lib/countries";
 import { MatchCountdown } from "@/components/match-countdown";
@@ -8,6 +8,7 @@ import { PageShell, SectionTitle, StatCard } from "@/components/ui";
 import { RankingList } from "@/components/ranking-list";
 import { AuthGate } from "@/components/auth-gate";
 import { RoundVisitorTracker } from "@/components/round-visitor-tracker";
+import { OFFICIAL_WHATSAPP_GROUP_URL } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,8 @@ export default async function Home() {
       </PageShell>
     );
   }
+
+  const homeSocialProof = await getHomeSocialProof(match.id);
 
   const publicEntryValue = match.entryValue + match.operationalFee;
   const roundNumber = Math.max(upcomingBrazilMatches.findIndex((item) => item.id === match.id) + 1, 1);
@@ -270,14 +273,44 @@ export default async function Home() {
           </section>
         ) : null}
 
-        <section className="mt-6 grid gap-4 md:grid-cols-3">
+        <section className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard icon={Trophy} label="Prêmio atual" value={currency(currentRoundPrize)} tone="yellow" />
           <StatCard icon={Wallet} label="Cada palpite" value={currency(publicEntryValue)} />
           <StatCard icon={Users} label="Palpites nesta rodada" value={`${currentRoundConfirmedGuesses}`} tone="blue" />
+          <StatCard icon={CircleDollarSign} label="Prêmios já pagos" value={currency(homeSocialProof.totalPrizesPaid)} />
         </section>
         <p className="mt-3 rounded-lg bg-white p-4 text-sm font-black text-brasil-navy shadow-field">
           Prêmio atual calculado apenas pela rodada aberta, com mínimo garantido de {currency(currentMinimumPrize)}.
         </p>
+
+        <a
+          href={OFFICIAL_WHATSAPP_GROUP_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#1f9d55] px-5 text-center font-black text-white shadow-field sm:w-auto"
+        >
+          <MessageCircle size={20} aria-hidden />
+          Grupo Oficial do WhatsApp
+        </a>
+
+        <section className="mt-6 rounded-lg bg-white p-5 shadow-field md:p-6">
+          <h2 className="text-xl font-black text-brasil-navy">Últimos participantes</h2>
+          <p className="mt-1 text-sm font-semibold text-slate-600">Palpites confirmados na rodada atual.</p>
+          {homeSocialProof.latestParticipants.length > 0 ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {homeSocialProof.latestParticipants.map((participant) => (
+                <div key={participant.id} className="rounded-lg bg-brasil-light p-4">
+                  <p className="font-black text-brasil-navy">{participant.name}</p>
+                  <p className="mt-1 text-xs font-bold uppercase text-brasil-green">Palpite confirmado</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-lg bg-brasil-light p-4 font-bold text-slate-600">
+              Seja o primeiro participante confirmado desta rodada.
+            </p>
+          )}
+        </section>
 
         <section className="mt-6 rounded-lg bg-white p-5 shadow-field md:p-6">
           <h2 className="text-xl font-black text-brasil-navy">💰 Simulação da premiação</h2>

@@ -119,6 +119,14 @@ export type HallOfFamePlayer = {
   totalPrizes: number;
 };
 
+export type HomeSocialProof = {
+  totalPrizesPaid: number;
+  latestParticipants: Array<{
+    id: string;
+    name: string;
+  }>;
+};
+
 export type DashboardEngagement = {
   roundNumber: number;
   matchId: string;
@@ -867,6 +875,78 @@ export async function getHallOfFame(): Promise<HallOfFamePlayer[]> {
 
   return Array.from(players.values())
     .sort((a, b) => b.wins - a.wins || b.totalPrizes - a.totalPrizes || a.name.localeCompare(b.name));
+}
+
+function publicParticipantName(value: string) {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length <= 1) {
+    return parts[0] || "Participante";
+  }
+
+  return `${parts[0]} ${parts[parts.length - 1].charAt(0).toUpperCase()}.`;
+}
+
+export async function getHomeSocialProof(matchId: string): Promise<HomeSocialProof> {
+  const supabase = getSupabaseServerClient() ?? getSupabaseServer();
+
+  if (!supabase) {
+    return { totalPrizesPaid: 0, latestParticipants: [] };
+  }
+
+  const [{ data: winnersData }, { data: betsData }] = await Promise.all([
+    supabase.from("rodada_vencedores").select("valor_premio"),
+    supabase
+      .from("apostas")
+      .select("id,perfil_id,pagamento_id,criado_em")
+      .eq("jogo_id", matchId)
+      .eq("status", "confirmed")
+      .order("criado_em", { ascending: false })
+      .limit(50)
+  ]);
+  const totalPrizesPaid = ((winnersData ?? []) as DbRow[]).reduce(
+    (total, winner) => total + numberValue(winner, ["valor_premio"], 0),
+    0
+  );
+  const bets = (betsData ?? []) as DbRow[];
+  const paymentIds = Array.from(new Set(bets.map((bet) => stringValue(bet, ["pagamento_id"])).filter(Boolean)));
+
+  if (paymentIds.length === 0) {
+    return { totalPrizesPaid, latestParticipants: [] };
+  }
+
+  const { data: paymentsData } = await supabase
+    .from("pagamentos")
+    .select("id")
+    .in("id", paymentIds)
+    .in("status", PAID_PAYMENT_STATUSES);
+  const paidPaymentIds = new Set(((paymentsData ?? []) as DbRow[]).map((payment) => stringValue(payment, ["id"])));
+  const latestProfileIds: string[] = [];
+
+  for (const bet of bets) {
+    const profileId = stringValue(bet, ["perfil_id"]);
+
+    if (paidPaymentIds.has(stringValue(bet, ["pagamento_id"])) && profileId && !latestProfileIds.includes(profileId)) {
+      latestProfileIds.push(profileId);
+    }
+
+    if (latestProfileIds.length === 8) {
+      break;
+    }
+  }
+
+  const { data: profilesData } = latestProfileIds.length
+    ? await supabase.from("perfis").select("id,nome").in("id", latestProfileIds)
+    : { data: [] };
+  const profilesById = new Map(((profilesData ?? []) as DbRow[]).map((profile) => [stringValue(profile, ["id"]), profile]));
+
+  return {
+    totalPrizesPaid,
+    latestParticipants: latestProfileIds.map((profileId) => ({
+      id: profileId,
+      name: publicParticipantName(stringValue(profilesById.get(profileId) ?? {}, ["nome"], "Participante"))
+    }))
+  };
 }
 
 export async function getAdminStats() {
