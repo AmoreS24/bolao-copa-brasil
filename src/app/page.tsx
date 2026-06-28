@@ -22,26 +22,6 @@ const LAST_WINNERS = [
   { name: "Lidiane Santos Barreto", prize: 125 },
   { name: "Geicielle Mendes da Silva", prize: 125 }
 ];
-const CURRENT_PUBLIC_ROUND = {
-  homeTeam: "Brasil",
-  awayTeam: "Japão",
-  startsAt: "2026-06-29T14:00:00-03:00",
-  bettingClosesAt: "2026-06-29T13:45:00-03:00",
-  dateLabel: "29/06/2026",
-  timeLabel: "14:00",
-  bettingClosesLabel: "13:45",
-  venue: "",
-  city: "",
-  group: KNOCKOUT_STAGE_LABEL,
-  status: "aberto" as const,
-  guaranteedPrize: ROUND_THREE_MINIMUM_PRIZE,
-  entryValue: 10,
-  operationalFee: 1.99,
-  scoreExamples: Array.from({ length: 24 }, (_, index) => ({
-    brazil: index % 6,
-    opponent: Math.floor(index / 2) % 4
-  }))
-};
 const KNOCKOUT_PATH = [
   { stage: "16 avos de final", date: "29/06", time: "14h", match: "Brasil x Japão", home: "Brasil", away: "Japão", current: true },
   { stage: "Oitavas de final", date: "05/07", time: "17h", match: "A definir", home: "", away: "", current: false },
@@ -71,13 +51,7 @@ export default async function Home() {
     );
   }
 
-  const displayMatch: typeof match = {
-    ...match,
-    ...CURRENT_PUBLIC_ROUND,
-    exactPool: ROUND_THREE_MINIMUM_PRIZE,
-    displayedPrizeTotal: ROUND_THREE_MINIMUM_PRIZE,
-    confirmedGuesses: match.status === "aberto" ? match.confirmedGuesses : 0
-  };
+  const displayMatch = match;
 
   const publicEntryValue = displayMatch.entryValue + displayMatch.operationalFee;
   const currentMinimumPrize = ROUND_THREE_MINIMUM_PRIZE;

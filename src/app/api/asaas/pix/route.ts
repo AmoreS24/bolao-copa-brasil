@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getMatchById } from "@/data/supabase-live";
+import { getActiveMatch, getMatchById } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
@@ -184,10 +184,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Informe pelo menos um palpite." }, { status: 400 });
     }
 
-    const [match, supabase] = await Promise.all([getMatchById(body.matchId), Promise.resolve(getSupabaseServerClient())]);
+    const [match, activeMatch, supabase] = await Promise.all([
+      getMatchById(body.matchId),
+      getActiveMatch(),
+      Promise.resolve(getSupabaseServerClient())
+    ]);
 
     if (!match) {
       return NextResponse.json({ error: "Jogo não encontrado." }, { status: 404 });
+    }
+
+    if (!activeMatch || match.id !== activeMatch.id || activeMatch.status !== "aberto") {
+      return NextResponse.json(
+        { error: "Esta rodada não está aberta para palpites. Abra a rodada atual e tente novamente." },
+        { status: 400 }
+      );
     }
 
     if (!supabase) {

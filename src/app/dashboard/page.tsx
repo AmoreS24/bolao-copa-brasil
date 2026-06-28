@@ -2,7 +2,7 @@ import { Flag, Goal, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { MatchCard } from "@/components/match-card";
 import { PageShell, PrimaryLink, SectionTitle, StatCard } from "@/components/ui";
-import { getDashboardEngagement, getProfileSummary, getUpcomingMatches, getPrizeValue } from "@/data/supabase-live";
+import { getActiveMatch, getDashboardEngagement, getProfileSummary, getUpcomingMatches, getPrizeValue } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -22,13 +22,13 @@ function statusLabel(status: string) {
 }
 
 export default async function DashboardPage() {
-  const [matches, prize, profile, engagement] = await Promise.all([
+  const [matches, prize, profile, engagement, nextMatch] = await Promise.all([
     getUpcomingMatches(),
     getPrizeValue(),
     getProfileSummary(),
-    getDashboardEngagement()
+    getDashboardEngagement(),
+    getActiveMatch()
   ]);
-  const nextMatch = matches.find((match) => match.status === "aberto") ?? matches.find((match) => match.status !== "encerrado");
   const daysUntilClose = engagement
     ? Math.max(0, Math.ceil((new Date(engagement.bettingClosesAt).getTime() - Date.now()) / 86_400_000))
     : 0;

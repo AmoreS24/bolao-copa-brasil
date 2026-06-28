@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
-import { CalendarDays, CircleDollarSign, Clock, MapPin, Trophy, Users } from "lucide-react";
-import { getMatchById } from "@/data/supabase-live";
+import { notFound, redirect } from "next/navigation";
+import { CalendarDays, CircleDollarSign, Clock, Trophy, Users } from "lucide-react";
+import { getActiveMatch, getMatchById } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
 import { currency } from "@/lib/utils";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
@@ -10,10 +10,18 @@ import { AuthGate } from "@/components/auth-gate";
 export const dynamic = "force-dynamic";
 
 export default async function GamePage({ params }: { params: { id: string } }) {
-  const [match, user] = await Promise.all([getMatchById(params.id), getCurrentUser()]);
+  const [match, activeMatch, user] = await Promise.all([
+    getMatchById(params.id),
+    getActiveMatch(),
+    getCurrentUser()
+  ]);
 
   if (!match) {
     notFound();
+  }
+
+  if (activeMatch && match.id !== activeMatch.id && activeMatch.status === "aberto") {
+    redirect(`/jogos/${activeMatch.id}`);
   }
 
   const estimatedPrize = match.exactPool;
@@ -36,9 +44,9 @@ export default async function GamePage({ params }: { params: { id: string } }) {
               <p className="flex items-center gap-2">
                 <CalendarDays size={18} aria-hidden /> {match.dateLabel}, {match.timeLabel}
               </p>
-              <p className="flex items-center gap-2">
-                <MapPin size={18} aria-hidden /> {match.venue}{match.city ? `, ${match.city}` : ""}
-              </p>
+              {match.venue || match.city ? (
+                <p>{match.venue}{match.city ? `, ${match.city}` : ""}</p>
+              ) : null}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -100,7 +108,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
             <div className="rounded-lg bg-white/10 p-4">
               <p className="text-sm font-black uppercase text-brasil-yellow">Fechamento</p>
               <p className="mt-1 flex items-center gap-2 font-black">
-                <Clock size={18} aria-hidden /> Apostas até {match.bettingClosesLabel}
+                <Clock size={18} aria-hidden /> Palpites até {match.bettingClosesLabel}
               </p>
               <p className="mt-1 text-sm font-semibold text-white/80">15 minutos antes da partida.</p>
             </div>
