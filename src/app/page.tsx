@@ -1,6 +1,6 @@
-import { CalendarDays, CircleDollarSign, Clock, Flame, MessageCircle, Trophy, Users, Wallet } from "lucide-react";
+import { CalendarDays, CheckCircle2, CircleDollarSign, Clock, CreditCard, Flame, MessageCircle, Target, Trophy, Users, Wallet } from "lucide-react";
 import Link from "next/link";
-import { getClosedRounds, getHomeSocialProof, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
+import { getClosedRounds, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 import { countryFlag, countryWithFlag } from "@/lib/countries";
 import { MatchCountdown } from "@/components/match-countdown";
@@ -18,6 +18,10 @@ const ROUND_THREE_MINIMUM_PRIZE = 250;
 const ROUND_GUESS_GOAL = 50;
 const PUBLIC_PRIZES_PAID_TOTAL = 700;
 const KNOCKOUT_STAGE_LABEL = "Mata-mata • 16 avos de final";
+const LAST_WINNERS = [
+  { name: "Lidiane Santos Barreto", prize: 125 },
+  { name: "Geicielle Mendes da Silva", prize: 125 }
+];
 const CURRENT_PUBLIC_ROUND = {
   homeTeam: "Brasil",
   awayTeam: "Japão",
@@ -67,7 +71,6 @@ export default async function Home() {
     );
   }
 
-  const homeSocialProof = await getHomeSocialProof(match.id);
   const displayMatch: typeof match = {
     ...match,
     ...CURRENT_PUBLIC_ROUND,
@@ -137,27 +140,50 @@ export default async function Home() {
               </p>
             </div>
             <div className="mx-auto mt-4 grid w-full max-w-2xl gap-2 sm:grid-cols-3">
-              <div className="rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur">
+              <div className="flex min-h-24 flex-col justify-center rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur">
                 <p className="text-xs font-black uppercase text-brasil-yellow">Data do jogo</p>
                 <p className="mt-1 text-xl font-black">{displayMatch.dateLabel}</p>
               </div>
-              <div className="rounded-lg border border-brasil-yellow/45 bg-black/32 p-3 text-white shadow-field backdrop-blur">
+              <div className="flex min-h-24 flex-col justify-center rounded-lg border border-brasil-yellow/45 bg-black/32 p-3 text-white shadow-field backdrop-blur">
                 <p className="text-xs font-black uppercase text-brasil-yellow">🏆 Prêmio atual</p>
                 <p className="mt-1 text-xl font-black">{currency(currentRoundPrize)}</p>
                 <p className="mt-1 text-[11px] font-bold text-white/80">mínimo garantido de {currency(currentMinimumPrize)}</p>
               </div>
-              <div className="rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur">
+              <div className="flex min-h-24 flex-col justify-center rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur">
                 <p className="text-xs font-black uppercase text-brasil-yellow">💰 Cada palpite</p>
                 <p className="mt-1 text-xl font-black">{currency(publicEntryValue)}</p>
               </div>
             </div>
-            <div className="mx-auto mt-3 flex max-w-2xl flex-col items-center justify-between gap-3 rounded-lg border border-brasil-yellow/45 bg-white/12 px-4 py-3 text-white shadow-field backdrop-blur sm:flex-row">
-              <p className="text-center text-sm font-black sm:text-left">🏆 Já pagamos R$ 700,00 em premiações nesta Copa!</p>
+            <div className="mx-auto mt-3 max-w-2xl rounded-lg border border-brasil-yellow bg-brasil-yellow p-1 shadow-[0_16px_42px_rgba(255,214,0,0.28)]">
+              <div className="rounded-md bg-white px-4 py-4 text-left text-brasil-navy sm:px-5">
+                <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+                  <div className="grid gap-2 text-sm font-black sm:text-base">
+                    <p>🏆 Já pagamos R$ 700,00 em premiações.</p>
+                    <p>👥 6 ganhadores premiados.</p>
+                    <p className="flex items-center gap-2">
+                      <CheckCircle2 size={18} className="text-brasil-green" aria-hidden />
+                      100% dos prêmios pagos via PIX.
+                    </p>
+                  </div>
+                  <Link
+                    href="/vencedores"
+                    className="inline-flex min-h-11 items-center justify-center rounded-full bg-brasil-green px-5 text-sm font-black text-white shadow-field transition hover:-translate-y-0.5"
+                  >
+                    Ver comprovantes
+                  </Link>
+                </div>
+              </div>
+            </div>
+            <div className="mx-auto mt-3 flex max-w-2xl flex-col items-center justify-between gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-white shadow-field backdrop-blur sm:flex-row">
+              <p className="text-center text-xs font-bold text-white/82 sm:text-left">Entre no grupo para receber avisos da rodada.</p>
               <Link
-                href="/vencedores"
-                className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-brasil-yellow px-4 text-sm font-black text-brasil-navy shadow-field"
+                href={OFFICIAL_WHATSAPP_GROUP_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-white/35 px-3 text-xs font-black text-white transition hover:bg-white/10"
               >
-                Ver vencedores
+                <MessageCircle size={15} aria-hidden />
+                Grupo Oficial
               </Link>
             </div>
             <div className="mt-4">
@@ -181,8 +207,11 @@ export default async function Home() {
                       <span>🎯 Meta da Rodada</span>
                       <span>{goalReached ? "Meta batida!" : `${goalProgress}%`}</span>
                     </div>
-                    <p className="mt-1 text-sm font-bold text-white/85">
-                      {currentRoundConfirmedGuesses} de {ROUND_GUESS_GOAL} palpites confirmados
+                    <p className="mt-2 text-sm font-black text-brasil-yellow">
+                      🔥 Ajude a aumentar a premiação.
+                    </p>
+                    <p className="mt-1 text-sm font-bold leading-relaxed text-white/85">
+                      Quanto mais palpites confirmados, maior poderá ser o prêmio da rodada.
                     </p>
                     <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20">
                       <div className="h-full rounded-full bg-brasil-yellow transition-[width]" style={{ width: `${goalProgress}%` }} />
@@ -318,47 +347,70 @@ export default async function Home() {
           Prêmio atual calculado apenas pela rodada aberta, com mínimo garantido de {currency(currentMinimumPrize)}.
         </p>
 
-        <a
-          href={OFFICIAL_WHATSAPP_GROUP_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#1f9d55] px-5 text-center font-black text-white shadow-field sm:w-auto"
-        >
-          <MessageCircle size={20} aria-hidden />
-          Grupo Oficial do WhatsApp
-        </a>
-
         <section className="mt-6 rounded-lg bg-white p-5 shadow-field md:p-6">
-          <h2 className="text-xl font-black text-brasil-navy">Últimos participantes</h2>
-          <p className="mt-1 text-sm font-semibold text-slate-600">Palpites confirmados na rodada atual.</p>
-          {homeSocialProof.latestParticipants.length > 0 ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {homeSocialProof.latestParticipants.map((participant) => (
-                <div key={participant.id} className="rounded-lg bg-brasil-light p-4">
-                  <p className="font-black text-brasil-navy">{participant.name}</p>
-                  <p className="mt-1 text-xs font-bold uppercase text-brasil-green">Palpite confirmado</p>
-                </div>
-              ))}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-brasil-green">Prova social</p>
+              <h2 className="text-2xl font-black text-brasil-navy">Últimos vencedores</h2>
             </div>
-          ) : (
-            <p className="mt-4 rounded-lg bg-brasil-light p-4 font-bold text-slate-600">
-              Seja o primeiro participante confirmado desta rodada.
-            </p>
-          )}
+            <Link
+              href="/vencedores"
+              className="inline-flex min-h-10 items-center justify-center rounded-full bg-brasil-yellow px-4 text-sm font-black text-brasil-navy shadow-field"
+            >
+              Ver todos os vencedores
+            </Link>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-stretch">
+            {LAST_WINNERS.map((winner) => (
+              <div key={winner.name} className="flex min-h-28 flex-col justify-between rounded-lg bg-brasil-light p-4">
+                <p className="font-black uppercase text-brasil-navy">🥇 {winner.name}</p>
+                <p className="mt-3 text-2xl font-black text-brasil-green">{currency(winner.prize)}</p>
+              </div>
+            ))}
+            <div className="flex min-h-28 flex-col justify-center rounded-lg bg-brasil-navy p-4 text-white">
+              <p className="text-xs font-black uppercase text-brasil-yellow">Resultado</p>
+              <p className="mt-2 text-xl font-black">{countryWithFlag("Escócia")} 0 x 3 {countryWithFlag("Brasil")}</p>
+            </div>
+          </div>
         </section>
 
         <section className="mt-6 rounded-lg bg-white p-5 shadow-field md:p-6">
-          <h2 className="text-xl font-black text-brasil-navy">💰 Simulação da premiação</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-brasil-green">Crescimento do prêmio</p>
+            <h2 className="text-2xl font-black text-brasil-navy">💰 Simulação da premiação</h2>
+            <p className="text-sm font-semibold text-slate-600">O prêmio aumenta conforme a participação.</p>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
             {[
               ["Prêmio atual", currentRoundPrize],
               ["Com 50 palpites", Math.max(currentMinimumPrize, 50 * CURRENT_ROUND_BASE_ENTRY * 0.6)],
               ["Com 100 palpites", Math.max(currentMinimumPrize, 100 * CURRENT_ROUND_BASE_ENTRY * 0.6)]
             ].map(([label, value]) => (
-              <div key={String(label)} className="rounded-lg bg-brasil-light p-4">
-                <p className="text-sm font-bold text-slate-500">{label}</p>
-                <p className="mt-1 text-2xl font-black text-brasil-green">{currency(Number(value))}</p>
+              <div key={String(label)} className="flex min-h-32 flex-col justify-between rounded-lg border border-brasil-green/10 bg-brasil-light p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+                <p className="text-sm font-black uppercase text-slate-500">{label}</p>
+                <p className="mt-3 text-3xl font-black text-brasil-green md:text-4xl">{currency(Number(value))}</p>
               </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-6">
+          <SectionTitle eyebrow="Passo a passo" title="Como participar?" />
+          <div className="grid gap-3 md:grid-cols-3">
+            {[
+              { icon: Target, title: "① Escolha seu palpite.", text: "Defina o placar exato para Brasil x Japão." },
+              { icon: CreditCard, title: "② Faça o PIX.", text: "Seu palpite entra na rodada depois da confirmação." },
+              { icon: Trophy, title: "③ Acerte o placar e receba o prêmio.", text: "Os ganhadores recebem a premiação via PIX." }
+            ].map((step) => (
+              <article key={step.title} className="flex min-h-36 gap-4 rounded-lg bg-white p-5 shadow-field">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brasil-yellow text-brasil-navy">
+                  <step.icon size={22} aria-hidden />
+                </span>
+                <div>
+                  <h3 className="font-black text-brasil-navy">{step.title}</h3>
+                  <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-600">{step.text}</p>
+                </div>
+              </article>
             ))}
           </div>
         </section>
@@ -389,6 +441,9 @@ export default async function Home() {
             </div>
           </div>
           <div>
+            <div className="mb-4 rounded-lg border border-brasil-yellow/50 bg-white p-4 font-black text-brasil-navy shadow-field">
+              🏆 Quanto mais rodadas você participar, mais pontos poderá acumular.
+            </div>
             <SectionTitle eyebrow="Top 10" title="Ranking da Torcida Brasileira" />
             <RankingList players={rankingPlayers} limit={10} />
           </div>
