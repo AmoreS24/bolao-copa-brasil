@@ -402,6 +402,18 @@ function isBrazilJapanRound(match: LiveMatch) {
     && match.startsAt.slice(0, 10) === "2026-06-29";
 }
 
+function matchSignature(match: Pick<LiveMatch, "homeTeam" | "awayTeam" | "startsAt">) {
+  return [
+    match.homeTeam.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(),
+    match.awayTeam.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(),
+    match.startsAt.slice(0, 10)
+  ].join("|");
+}
+
+export function isSameRound(match: LiveMatch, activeMatch: LiveMatch) {
+  return match.id === activeMatch.id || matchSignature(match) === matchSignature(activeMatch);
+}
+
 function isBettingWindowOpen(match: LiveMatch, now = Date.now()) {
   return match.status === "aberto" && new Date(match.bettingClosesAt).getTime() > now;
 }

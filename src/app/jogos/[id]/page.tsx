@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { CalendarDays, CircleDollarSign, Clock, Trophy, Users } from "lucide-react";
-import { getActiveMatch, getMatchById } from "@/data/supabase-live";
+import { getActiveMatch, getMatchById, isSameRound } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
 import { currency } from "@/lib/utils";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
@@ -20,7 +20,7 @@ export default async function GamePage({ params }: { params: { id: string } }) {
     notFound();
   }
 
-  if (activeMatch && match.id !== activeMatch.id && activeMatch.status === "aberto") {
+  if (activeMatch && !isSameRound(match, activeMatch) && activeMatch.status === "aberto") {
     redirect(`/jogos/${activeMatch.id}`);
   }
 

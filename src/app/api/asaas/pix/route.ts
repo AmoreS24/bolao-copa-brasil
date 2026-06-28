@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getActiveMatch, getMatchById } from "@/data/supabase-live";
+import { getActiveMatch, getMatchById, isSameRound } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
@@ -194,7 +194,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Jogo não encontrado." }, { status: 404 });
     }
 
-    if (!activeMatch || match.id !== activeMatch.id || activeMatch.status !== "aberto") {
+    if (!activeMatch || !isSameRound(match, activeMatch) || activeMatch.status !== "aberto") {
+      console.error("[Asaas Pix] rodada recusada", {
+        reason: !activeMatch
+          ? "active_match_not_found"
+          : activeMatch.status !== "aberto"
+            ? "active_match_not_open"
+            : "match_id_does_not_match_active_round",
+        requestedMatchId: body.matchId,
+        resolvedMatch: {
+          id: match.id,
+          homeTeam: match.homeTeam,
+          awayTeam: match.awayTeam,
+          startsAt: match.startsAt,
+          status: match.status
+        },
+        activeMatch: activeMatch
+          ? {
+            id: activeMatch.id,
+            homeTeam: activeMatch.homeTeam,
+            awayTeam: activeMatch.awayTeam,
+            startsAt: activeMatch.startsAt,
+            status: activeMatch.status
+          }
+          : null
+      });
+
       return NextResponse.json(
         { error: "Esta rodada não está aberta para palpites. Abra a rodada atual e tente novamente." },
         { status: 400 }
