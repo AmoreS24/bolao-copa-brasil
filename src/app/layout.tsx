@@ -10,8 +10,13 @@ import { SUPPORT_WHATSAPP_URL } from "@/lib/support";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Bolão Jogos do Brasil",
-  description: "MVP de bolao esportivo para os jogos do Brasil na Copa do Mundo."
+  title: "Brasil x Japão | Bolão Jogos do Brasil",
+  description: "Palpite no jogo Brasil x Japão da Copa do Mundo. Rodada aberta ate 29/06/2026 as 13:45.",
+  openGraph: {
+    title: "Brasil x Japão | Bolão Jogos do Brasil",
+    description: "Rodada aberta para Brasil x Japão. Faça seu palpite e acompanhe a premiação atual.",
+    type: "website"
+  }
 };
 
 const navItems = [

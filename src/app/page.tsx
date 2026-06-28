@@ -1,4 +1,5 @@
 import { CalendarDays, CircleDollarSign, Clock, Flame, MapPin, MessageCircle, Trophy, Users, Wallet } from "lucide-react";
+import Link from "next/link";
 import { getClosedRounds, getGroupStandings, getHomeSocialProof, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 import { countryFlag, countryWithFlag } from "@/lib/countries";
@@ -15,6 +16,23 @@ export const dynamic = "force-dynamic";
 const CURRENT_ROUND_BASE_ENTRY = 10;
 const ROUND_THREE_MINIMUM_PRIZE = 250;
 const ROUND_GUESS_GOAL = 50;
+const CURRENT_PUBLIC_ROUND = {
+  homeTeam: "Brasil",
+  awayTeam: "Japão",
+  startsAt: "2026-06-29T14:00:00-03:00",
+  bettingClosesAt: "2026-06-29T13:45:00-03:00",
+  dateLabel: "29/06/2026",
+  timeLabel: "14:00",
+  bettingClosesLabel: "13:45",
+  venue: "A confirmar",
+  city: "",
+  group: "Grupo C",
+  status: "aberto" as const,
+  guaranteedPrize: ROUND_THREE_MINIMUM_PRIZE,
+  entryValue: 10,
+  operationalFee: 1.99,
+  scoreExamples: [{ brazil: 0, opponent: 0 }]
+};
 
 export default async function Home() {
   const [match, upcomingBrazilMatches, rankingPlayers, closedRounds, groupStandings] = await Promise.all([
@@ -39,11 +57,17 @@ export default async function Home() {
   }
 
   const homeSocialProof = await getHomeSocialProof(match.id);
+  const displayMatch: typeof match = {
+    ...match,
+    ...CURRENT_PUBLIC_ROUND,
+    exactPool: ROUND_THREE_MINIMUM_PRIZE,
+    displayedPrizeTotal: ROUND_THREE_MINIMUM_PRIZE,
+    confirmedGuesses: match.status === "aberto" ? match.confirmedGuesses : 0
+  };
 
-  const publicEntryValue = match.entryValue + match.operationalFee;
-  const roundNumber = Math.max(upcomingBrazilMatches.findIndex((item) => item.id === match.id) + 1, 1);
-  const currentMinimumPrize = roundNumber === 3 ? ROUND_THREE_MINIMUM_PRIZE : match.guaranteedPrize;
-  const currentRoundConfirmedGuesses = match.status === "aberto" ? match.confirmedGuesses : 0;
+  const publicEntryValue = displayMatch.entryValue + displayMatch.operationalFee;
+  const currentMinimumPrize = ROUND_THREE_MINIMUM_PRIZE;
+  const currentRoundConfirmedGuesses = displayMatch.status === "aberto" ? displayMatch.confirmedGuesses : 0;
   const currentRoundPrize = Math.max(
     currentMinimumPrize,
     currentRoundConfirmedGuesses * CURRENT_ROUND_BASE_ENTRY * 0.6
@@ -57,21 +81,21 @@ export default async function Home() {
   const goalReached = currentRoundConfirmedGuesses >= ROUND_GUESS_GOAL;
   const latestClosedRound = closedRounds[0];
   const latestPaidTotal = latestClosedRound?.winners.reduce((total, winner) => total + winner.prizeValue, 0) ?? 0;
-  const bettingStatusLabel = match.status === "encerrado"
+  const bettingStatusLabel = displayMatch.status === "encerrado"
     ? "encerrado"
-    : match.status === "em_andamento"
+    : displayMatch.status === "em_andamento"
       ? "palpites em breve"
       : "palpites abertos";
-  const roundLabel = match.status === "aberto" ? `Rodada ${roundNumber} aberta` : match.group;
+  const roundLabel = "Rodada aberta";
   const nextBrazilMatch = upcomingBrazilMatches.find(
-    (nextMatch) => nextMatch.id !== match.id && new Date(nextMatch.startsAt).getTime() > new Date(match.startsAt).getTime()
+    (nextMatch) => nextMatch.id !== match.id && new Date(nextMatch.startsAt).getTime() > new Date(displayMatch.startsAt).getTime()
   );
-  const homeFlag = countryFlag(match.homeTeam);
-  const awayFlag = countryFlag(match.awayTeam);
+  const homeFlag = countryFlag(displayMatch.homeTeam);
+  const awayFlag = countryFlag(displayMatch.awayTeam);
 
   return (
     <>
-      {match.status === "aberto" ? <RoundVisitorTracker gameId={match.id} /> : null}
+      {displayMatch.status === "aberto" ? <RoundVisitorTracker gameId={match.id} /> : null}
       <section className="stadium-hero">
         <div className="stadium-lights" aria-hidden />
         <div className="mx-auto flex min-h-[calc(100vh-76px)] max-w-5xl flex-col items-center justify-center gap-2 px-4 py-4 text-center text-white md:min-h-[640px] md:gap-3 md:py-6">
@@ -83,31 +107,31 @@ export default async function Home() {
               {roundLabel}
             </p>
             <h1 className="match-title mx-auto max-w-4xl font-sans text-4xl font-black uppercase leading-[0.98] tracking-wide sm:text-5xl md:text-[3.4rem]">
-              <span className="text-brasil-yellow">{homeFlag ? `${homeFlag} ` : ""}{match.homeTeam}</span>
+              <span className="text-brasil-yellow">{homeFlag ? `${homeFlag} ` : ""}{displayMatch.homeTeam}</span>
               <span className="mx-2 align-middle text-2xl text-white md:mx-4 md:text-4xl">x</span>
-              <span className="text-white">{match.awayTeam}{awayFlag ? ` ${awayFlag}` : ""}</span>
+              <span className="text-white">{displayMatch.awayTeam}{awayFlag ? ` ${awayFlag}` : ""}</span>
             </h1>
             <div className="mx-auto mt-3 flex max-w-3xl flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-sm font-bold text-white/90 sm:text-base">
               <p className="flex items-center gap-1.5">
-                <CalendarDays size={18} aria-hidden /> {match.dateLabel}, {match.timeLabel}
+                <CalendarDays size={18} aria-hidden /> {displayMatch.dateLabel}, {displayMatch.timeLabel}
               </p>
               <p className="flex items-center gap-1.5 text-white/85">
-                <MapPin size={18} aria-hidden /> {match.venue || "A confirmar"}{match.city ? ` – ${match.city}` : ""}
+                <MapPin size={18} aria-hidden /> {displayMatch.venue || "A confirmar"}{displayMatch.city ? ` – ${displayMatch.city}` : ""}
               </p>
               <p className="flex items-center gap-1.5">
-                <Trophy size={18} className="text-brasil-yellow" aria-hidden /> {match.competition}
+                <Trophy size={18} className="text-brasil-yellow" aria-hidden /> {displayMatch.competition}
               </p>
               <p className="flex items-center gap-1.5 text-white/85">
-                <Users size={18} className="text-brasil-yellow" aria-hidden /> {match.group}
+                <Users size={18} className="text-brasil-yellow" aria-hidden /> {displayMatch.group}
               </p>
               <p className="flex items-center gap-1.5">
-                <Clock size={18} className="text-brasil-yellow" aria-hidden /> Apostas até {match.bettingClosesLabel}
+                <Clock size={18} className="text-brasil-yellow" aria-hidden /> Apostas até {displayMatch.bettingClosesLabel}
               </p>
             </div>
             <div className="mx-auto mt-4 grid w-full max-w-2xl gap-2 sm:grid-cols-3">
               <div className="rounded-lg border border-white/22 bg-black/28 p-3 text-white shadow-field backdrop-blur">
                 <p className="text-xs font-black uppercase text-brasil-yellow">Data do jogo</p>
-                <p className="mt-1 text-xl font-black">{match.dateLabel}</p>
+                <p className="mt-1 text-xl font-black">{displayMatch.dateLabel}</p>
               </div>
               <div className="rounded-lg border border-brasil-yellow/45 bg-black/32 p-3 text-white shadow-field backdrop-blur">
                 <p className="text-xs font-black uppercase text-brasil-yellow">🏆 Prêmio atual</p>
@@ -119,8 +143,17 @@ export default async function Home() {
                 <p className="mt-1 text-xl font-black">{currency(publicEntryValue)}</p>
               </div>
             </div>
+            <div className="mx-auto mt-3 flex max-w-2xl flex-col items-center justify-between gap-3 rounded-lg border border-brasil-yellow/45 bg-white/12 px-4 py-3 text-white shadow-field backdrop-blur sm:flex-row">
+              <p className="text-center text-sm font-black sm:text-left">🏆 Já pagamos R$ 450,00 em premiações nesta Copa!</p>
+              <Link
+                href="/vencedores"
+                className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-brasil-yellow px-4 text-sm font-black text-brasil-navy shadow-field"
+              >
+                Ver vencedores
+              </Link>
+            </div>
             <div className="mt-4">
-              {match.status === "encerrado" ? (
+              {displayMatch.status === "encerrado" ? (
                 <div className="inline-flex min-h-14 items-center justify-center rounded-full bg-white/16 px-7 py-3 text-lg font-black text-white shadow-field">
                   Rodada encerrada
                 </div>
@@ -130,7 +163,7 @@ export default async function Home() {
               <p className="mx-auto mt-2 max-w-sm text-center text-xs font-bold text-white/82">
                 Status: {bettingStatusLabel}
               </p>
-              {match.status === "aberto" ? (
+              {displayMatch.status === "aberto" ? (
                 <div className="mx-auto mt-2 grid max-w-lg gap-2">
                   <p className="rounded-full border border-brasil-yellow/40 bg-black/24 px-4 py-2 text-sm font-black text-brasil-yellow shadow-field backdrop-blur">
                     {socialProofText}
@@ -154,12 +187,12 @@ export default async function Home() {
 
           <div className="relative z-10 grid w-full max-w-2xl gap-2">
             <div className="rounded-lg border border-white/20 bg-black/28 p-2 shadow-field backdrop-blur md:p-3">
-              <MatchCountdown startsAt={match.bettingClosesAt} />
+              <MatchCountdown startsAt={displayMatch.bettingClosesAt} />
             </div>
             <AnimatedScoreboard
-              homeTeam={match.homeTeam}
-              awayTeam={match.awayTeam}
-              scores={match.scoreExamples}
+              homeTeam={displayMatch.homeTeam}
+              awayTeam={displayMatch.awayTeam}
+              scores={displayMatch.scoreExamples}
               redirectTo={`/jogos/${match.id}`}
             />
           </div>
@@ -332,7 +365,7 @@ export default async function Home() {
           <div>
             <SectionTitle eyebrow="Ranking da Torcida Brasileira" title="Você também concorre no ranking" />
             <p className="rounded-lg bg-white p-5 text-base font-semibold leading-relaxed text-slate-600 shadow-field">
-              Depois do Pix aprovado em {match.homeTeam} x {match.awayTeam}, você pode registrar 1 voto no
+              Depois do Pix aprovado em {displayMatch.homeTeam} x {displayMatch.awayTeam}, você pode registrar 1 voto no
               Ranking da Torcida Brasileira para este jogo. A participação no ranking não depende da quantidade de palpites.
             </p>
             <div className="mt-4 grid gap-3">

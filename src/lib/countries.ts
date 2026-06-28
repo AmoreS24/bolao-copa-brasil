@@ -9,6 +9,9 @@ const COUNTRY_FLAGS: Record<string, string> = {
   franca: "🇫🇷",
   frança: "🇫🇷",
   haiti: "🇭🇹",
+  japao: "🇯🇵",
+  japão: "🇯🇵",
+  japan: "🇯🇵",
   marrocos: "🇲🇦",
   portugal: "🇵🇹",
   scotland: SCOTLAND_FLAG
