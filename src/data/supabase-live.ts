@@ -36,6 +36,18 @@ export type LiveMatch = {
   scoreExamples: Array<{ brazil: number; opponent: number }>;
 };
 
+export type CurrentRoundRecord = {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  startsAt: string;
+  guaranteedPrize: number;
+  group: string;
+  venue: string;
+  city: string;
+  competition: string;
+};
+
 export type LiveRankingPlayer = {
   position: number;
   profileId: string;
@@ -276,6 +288,10 @@ function getSupabaseServer() {
       persistSession: false
     }
   });
+}
+
+export function getCurrentFallbackRound(): CurrentRoundRecord {
+  return CURRENT_FALLBACK_ROUND;
 }
 
 function stringValue(row: DbRow, keys: string[], fallback = "") {

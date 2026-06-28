@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getActiveMatch, getMatchById, isSameRound } from "@/data/supabase-live";
+import { getActiveMatch, getCurrentFallbackRound, getMatchById, isSameRound } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
@@ -31,6 +31,12 @@ type ProfileRow = Record<string, unknown> & {
   telefone?: string;
   cpf?: string;
   origem_ref?: string;
+};
+
+type PixMatch = {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
 };
 
 const ENTRY_VALUE = 10;
@@ -98,6 +104,109 @@ function normalizePixQrCode(payload: AsaasResponse) {
     copyPaste: readTextField(payload, ["payload", "copyPaste", "copy_paste", "pixCopyPaste", "pix_copy_paste"]),
     expirationDate: readTextField(payload, ["expirationDate", "expiration_date"]),
     keys: Object.keys(payload)
+  };
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function minutesBefore(value: string, minutes: number) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Date(date.getTime() - minutes * 60 * 1000).toISOString();
+}
+
+async function resolvePixMatchRecord(
+  supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>,
+  match: { id: string; homeTeam: string; awayTeam: string; startsAt: string }
+): Promise<PixMatch> {
+  if (isUuid(match.id)) {
+    return {
+      id: match.id,
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam
+    };
+  }
+
+  const fallbackRound = getCurrentFallbackRound();
+  const startsAtDate = fallbackRound.startsAt.slice(0, 10);
+  const { data: existingRows, error: existingError } = await supabase
+    .from("jogos")
+    .select("id,time_da_casa,time_visitante,data_de_correspondencia")
+    .eq("time_da_casa", fallbackRound.homeTeam)
+    .eq("time_visitante", fallbackRound.awayTeam)
+    .gte("data_de_correspondencia", `${startsAtDate}T00:00:00-03:00`)
+    .lt("data_de_correspondencia", "2026-06-30T00:00:00-03:00")
+    .limit(1);
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  const existing = Array.isArray(existingRows) ? existingRows[0] : null;
+
+  if (existing?.id && typeof existing.id === "string") {
+    await supabase
+      .from("jogos")
+      .update({ status_jogo: "aguardando" })
+      .eq("status_jogo", "aberto")
+      .neq("id", existing.id);
+
+    await supabase
+      .from("jogos")
+      .update({
+        status_jogo: "aberto",
+        data_de_correspondencia: fallbackRound.startsAt,
+        apostas_encerram_em: minutesBefore(fallbackRound.startsAt, 15),
+        premio_garantido: fallbackRound.guaranteedPrize,
+        premio_total_exibido: fallbackRound.guaranteedPrize,
+        valor_palpite: ENTRY_VALUE
+      })
+      .eq("id", existing.id);
+
+    return {
+      id: existing.id,
+      homeTeam: String(existing.time_da_casa ?? fallbackRound.homeTeam),
+      awayTeam: String(existing.time_visitante ?? fallbackRound.awayTeam)
+    };
+  }
+
+  await supabase
+    .from("jogos")
+    .update({ status_jogo: "aguardando" })
+    .eq("status_jogo", "aberto");
+
+  const { data: created, error: createError } = await supabase
+    .from("jogos")
+    .insert({
+      time_da_casa: fallbackRound.homeTeam,
+      time_visitante: fallbackRound.awayTeam,
+      data_de_correspondencia: fallbackRound.startsAt,
+      apostas_encerram_em: minutesBefore(fallbackRound.startsAt, 15),
+      status_jogo: "aberto",
+      local: fallbackRound.venue,
+      cidade: fallbackRound.city,
+      grupo: fallbackRound.group,
+      premio_garantido: fallbackRound.guaranteedPrize,
+      premio_total_exibido: fallbackRound.guaranteedPrize,
+      valor_palpite: ENTRY_VALUE
+    })
+    .select("id,time_da_casa,time_visitante")
+    .single();
+
+  if (createError || !created?.id) {
+    throw createError ?? new Error("Não foi possível criar a rodada ativa.");
+  }
+
+  return {
+    id: String(created.id),
+    homeTeam: String(created.time_da_casa ?? fallbackRound.homeTeam),
+    awayTeam: String(created.time_visitante ?? fallbackRound.awayTeam)
   };
 }
 
@@ -231,6 +340,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Supabase não configurado." }, { status: 500 });
     }
 
+    let pixMatch: PixMatch;
+
+    try {
+      pixMatch = await resolvePixMatchRecord(supabase, match);
+    } catch (error) {
+      console.error("[Asaas Pix] erro ao resolver rodada ativa", {
+        requestedMatchId: body.matchId,
+        resolvedMatchId: match.id,
+        error: getSupabaseErrorDetails(error) ?? (error instanceof Error ? error.message : String(error))
+      });
+      logPixError(error);
+
+      return NextResponse.json(
+        { error: "Não foi possível preparar a rodada ativa para gerar o Pix." },
+        { status: 500 }
+      );
+    }
+
     const profileResult = await supabase
       .from("perfis")
       .select("id,nome,telefone,cpf,origem_ref")
@@ -298,8 +425,8 @@ export async function POST(request: Request) {
       billingType: "PIX",
       value: total,
       dueDate: tomorrowDate(),
-      description: `Bolão ${match.homeTeam} x ${match.awayTeam} - ${guesses.length} palpite(s)`,
-      externalReference: `${user.id}:${match.id}:${Date.now()}`
+      description: `Bolão ${pixMatch.homeTeam} x ${pixMatch.awayTeam} - ${guesses.length} palpite(s)`,
+      externalReference: `${user.id}:${pixMatch.id}:${Date.now()}`
     };
 
     console.log("[Asaas Pix] criando cobrança", {
@@ -462,7 +589,7 @@ export async function POST(request: Request) {
         guesses.map((guess) => ({
           pagamento_id: savedPayment.id,
           perfil_id: user.id,
-          jogo_id: match.id,
+          jogo_id: pixMatch.id,
           gols_brasil: guess.home,
           gols_adversario: guess.away,
           status: "pending_payment"
