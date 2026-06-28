@@ -1,6 +1,6 @@
-import { CalendarDays, CircleDollarSign, Clock, Flame, MapPin, MessageCircle, Trophy, Users, Wallet } from "lucide-react";
+import { CalendarDays, CircleDollarSign, Clock, Flame, MessageCircle, Trophy, Users, Wallet } from "lucide-react";
 import Link from "next/link";
-import { getClosedRounds, getGroupStandings, getHomeSocialProof, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
+import { getClosedRounds, getHomeSocialProof, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 import { countryFlag, countryWithFlag } from "@/lib/countries";
 import { MatchCountdown } from "@/components/match-countdown";
@@ -16,6 +16,8 @@ export const dynamic = "force-dynamic";
 const CURRENT_ROUND_BASE_ENTRY = 10;
 const ROUND_THREE_MINIMUM_PRIZE = 250;
 const ROUND_GUESS_GOAL = 50;
+const PUBLIC_PRIZES_PAID_TOTAL = 700;
+const KNOCKOUT_STAGE_LABEL = "Mata-mata • 16 avos de final";
 const CURRENT_PUBLIC_ROUND = {
   homeTeam: "Brasil",
   awayTeam: "Japão",
@@ -24,23 +26,32 @@ const CURRENT_PUBLIC_ROUND = {
   dateLabel: "29/06/2026",
   timeLabel: "14:00",
   bettingClosesLabel: "13:45",
-  venue: "A confirmar",
+  venue: "",
   city: "",
-  group: "Grupo C",
+  group: KNOCKOUT_STAGE_LABEL,
   status: "aberto" as const,
   guaranteedPrize: ROUND_THREE_MINIMUM_PRIZE,
   entryValue: 10,
   operationalFee: 1.99,
-  scoreExamples: [{ brazil: 0, opponent: 0 }]
+  scoreExamples: Array.from({ length: 24 }, (_, index) => ({
+    brazil: index % 6,
+    opponent: Math.floor(index / 2) % 4
+  }))
 };
+const KNOCKOUT_PATH = [
+  { stage: "16 avos de final", date: "29/06", time: "14h", match: "Brasil x Japão", home: "Brasil", away: "Japão", current: true },
+  { stage: "Oitavas de final", date: "05/07", time: "17h", match: "A definir", home: "", away: "", current: false },
+  { stage: "Quartas de final", date: "11/07", time: "18h", match: "A definir", home: "", away: "", current: false },
+  { stage: "Semifinal", date: "15/07", time: "16h", match: "A definir", home: "", away: "", current: false },
+  { stage: "Final", date: "19/07", time: "16h", match: "A definir", home: "", away: "", current: false }
+];
 
 export default async function Home() {
-  const [match, upcomingBrazilMatches, rankingPlayers, closedRounds, groupStandings] = await Promise.all([
+  const [match, upcomingBrazilMatches, rankingPlayers, closedRounds] = await Promise.all([
     getNextMatch(),
     getUpcomingMatches(),
     getRankingPlayers(10),
-    getClosedRounds(),
-    getGroupStandings("Grupo C")
+    getClosedRounds()
   ]);
 
   if (!match) {
@@ -86,7 +97,7 @@ export default async function Home() {
     : displayMatch.status === "em_andamento"
       ? "palpites em breve"
       : "palpites abertos";
-  const roundLabel = "Rodada aberta";
+  const roundLabel = KNOCKOUT_STAGE_LABEL;
   const nextBrazilMatch = upcomingBrazilMatches.find(
     (nextMatch) => nextMatch.id !== match.id && new Date(nextMatch.startsAt).getTime() > new Date(displayMatch.startsAt).getTime()
   );
@@ -115,9 +126,6 @@ export default async function Home() {
               <p className="flex items-center gap-1.5">
                 <CalendarDays size={18} aria-hidden /> {displayMatch.dateLabel}, {displayMatch.timeLabel}
               </p>
-              <p className="flex items-center gap-1.5 text-white/85">
-                <MapPin size={18} aria-hidden /> {displayMatch.venue || "A confirmar"}{displayMatch.city ? ` – ${displayMatch.city}` : ""}
-              </p>
               <p className="flex items-center gap-1.5">
                 <Trophy size={18} className="text-brasil-yellow" aria-hidden /> {displayMatch.competition}
               </p>
@@ -125,7 +133,7 @@ export default async function Home() {
                 <Users size={18} className="text-brasil-yellow" aria-hidden /> {displayMatch.group}
               </p>
               <p className="flex items-center gap-1.5">
-                <Clock size={18} className="text-brasil-yellow" aria-hidden /> Apostas até {displayMatch.bettingClosesLabel}
+                <Clock size={18} className="text-brasil-yellow" aria-hidden /> Palpites até {displayMatch.bettingClosesLabel}
               </p>
             </div>
             <div className="mx-auto mt-4 grid w-full max-w-2xl gap-2 sm:grid-cols-3">
@@ -144,7 +152,7 @@ export default async function Home() {
               </div>
             </div>
             <div className="mx-auto mt-3 flex max-w-2xl flex-col items-center justify-between gap-3 rounded-lg border border-brasil-yellow/45 bg-white/12 px-4 py-3 text-white shadow-field backdrop-blur sm:flex-row">
-              <p className="text-center text-sm font-black sm:text-left">🏆 Já pagamos R$ 450,00 em premiações nesta Copa!</p>
+              <p className="text-center text-sm font-black sm:text-left">🏆 Já pagamos R$ 700,00 em premiações nesta Copa!</p>
               <Link
                 href="/vencedores"
                 className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-brasil-yellow px-4 text-sm font-black text-brasil-navy shadow-field"
@@ -201,37 +209,33 @@ export default async function Home() {
 
       <PageShell>
         <section className="mb-8">
-          <SectionTitle eyebrow="Grupo C" title="🏆 Classificação do Grupo C" />
-          <div className="overflow-x-auto rounded-lg bg-white shadow-field">
-            <table className="min-w-[720px] w-full text-left text-sm">
-              <thead className="bg-brasil-navy text-xs font-black uppercase text-white">
-                <tr>
-                  <th className="px-4 py-3">Posição</th>
-                  <th className="px-4 py-3">Seleção</th>
-                  <th className="px-3 py-3 text-center">PJ</th>
-                  <th className="px-3 py-3 text-center">VIT</th>
-                  <th className="px-3 py-3 text-center">E</th>
-                  <th className="px-3 py-3 text-center">DER</th>
-                  <th className="px-3 py-3 text-center">SG</th>
-                  <th className="px-4 py-3 text-right">PTS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {groupStandings.map((standing) => (
-                  <tr key={standing.team} className="font-bold text-slate-700">
-                    <td className="px-4 py-3 font-black text-brasil-green">{standing.position}º</td>
-                    <td className="px-4 py-3 font-black text-brasil-navy">{countryWithFlag(standing.team)}</td>
-                    <td className="px-3 py-3 text-center">{standing.played}</td>
-                    <td className="px-3 py-3 text-center">{standing.wins}</td>
-                    <td className="px-3 py-3 text-center">{standing.draws}</td>
-                    <td className="px-3 py-3 text-center">{standing.losses}</td>
-                    <td className="px-3 py-3 text-center">{standing.goalDifference}</td>
-                    <td className="px-4 py-3 text-right font-black">{standing.points}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <SectionTitle eyebrow="Mata-mata" title="Caminho do Brasil no mata-mata" />
+          <div className="grid gap-3 md:grid-cols-5">
+            {KNOCKOUT_PATH.map((round) => {
+              const roundHomeFlag = round.home ? countryFlag(round.home) : "";
+              const roundAwayFlag = round.away ? countryFlag(round.away) : "";
+
+              return (
+                <article
+                  key={round.stage}
+                  className={`rounded-lg p-4 shadow-field ${round.current ? "bg-brasil-navy text-white" : "bg-white text-slate-700"}`}
+                >
+                  <p className={`text-xs font-black uppercase ${round.current ? "text-brasil-yellow" : "text-brasil-green"}`}>
+                    {round.stage}
+                  </p>
+                  <p className="mt-2 text-lg font-black">
+                    {roundHomeFlag ? `${roundHomeFlag} ` : ""}{round.match}{roundAwayFlag ? ` ${roundAwayFlag}` : ""}
+                  </p>
+                  <p className={`mt-3 text-sm font-bold ${round.current ? "text-white/82" : "text-slate-500"}`}>
+                    {round.date} • {round.time}
+                  </p>
+                </article>
+              );
+            })}
           </div>
+          <p className="mt-3 rounded-lg bg-white p-4 text-sm font-bold text-slate-600 shadow-field">
+            Datas e horários condicionados ao avanço da Seleção.
+          </p>
         </section>
 
         {latestClosedRound ? (
@@ -296,8 +300,6 @@ export default async function Home() {
               </h2>
               <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600">
                 <p>{nextBrazilMatch.dateLabel}</p>
-                <p>{nextBrazilMatch.venue}</p>
-                {nextBrazilMatch.city ? <p>{nextBrazilMatch.city}</p> : null}
               </div>
               <p className="mt-4 inline-flex min-h-10 items-center rounded-full bg-brasil-light px-4 text-sm font-black text-brasil-navy">
                 Status: Aguardando abertura da rodada
@@ -310,7 +312,7 @@ export default async function Home() {
           <StatCard icon={Trophy} label="Prêmio atual" value={currency(currentRoundPrize)} tone="yellow" />
           <StatCard icon={Wallet} label="Cada palpite" value={currency(publicEntryValue)} />
           <StatCard icon={Users} label="Palpites nesta rodada" value={`${currentRoundConfirmedGuesses}`} tone="blue" />
-          <StatCard icon={CircleDollarSign} label="Prêmios já pagos" value={currency(homeSocialProof.totalPrizesPaid)} />
+          <StatCard icon={CircleDollarSign} label="Prêmios já pagos" value={currency(PUBLIC_PRIZES_PAID_TOTAL)} />
         </section>
         <p className="mt-3 rounded-lg bg-white p-4 text-sm font-black text-brasil-navy shadow-field">
           Prêmio atual calculado apenas pela rodada aberta, com mínimo garantido de {currency(currentMinimumPrize)}.
