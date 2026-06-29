@@ -8,6 +8,8 @@ import { PredictionBuilder } from "@/components/prediction-builder";
 import { AuthGate } from "@/components/auth-gate";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function GamePage({ params }: { params: { id: string } }) {
   const [match, activeMatch, user] = await Promise.all([

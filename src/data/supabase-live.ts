@@ -273,7 +273,13 @@ const CURRENT_FALLBACK_ROUND = {
 const GAME_COLUMNS = "id,time_da_casa,time_visitante,data_de_correspondencia,apostas_encerram_em";
 const PAID_PAYMENT_STATUSES = ["paid", "confirmed", "received", "PAYMENT_RECEIVED"];
 const PENDING_PAYMENT_STATUSES = ["pending", "pending_payment", "aguardando_pagamento"];
-const CONFIRMED_BET_STATUSES = ["confirmed", "paid", "received", "PAYMENT_RECEIVED", "vencedor"];
+
+function noStoreFetch(input: RequestInfo | URL, init?: RequestInit) {
+  return fetch(input, {
+    ...init,
+    cache: "no-store"
+  });
+}
 
 function getSupabaseServer() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -286,6 +292,9 @@ function getSupabaseServer() {
   return createClient(supabaseUrl, supabaseKey, {
     auth: {
       persistSession: false
+    },
+    global: {
+      fetch: noStoreFetch
     }
   });
 }
@@ -597,8 +606,7 @@ export async function getConfirmedGuessesCount(matchId?: string) {
 
   let query = supabase
     .from("apostas")
-    .select("id,pagamento_id,status")
-    .in("status", CONFIRMED_BET_STATUSES);
+    .select("id,pagamento_id,status");
 
   if (matchId) {
     query = query.eq("jogo_id", matchId);
@@ -610,7 +618,10 @@ export async function getConfirmedGuessesCount(matchId?: string) {
     return 0;
   }
 
-  const bets = (betsData ?? []) as DbRow[];
+  const bets = ((betsData ?? []) as DbRow[]).filter((bet) => {
+    const status = stringValue(bet, ["status"]);
+    return status !== "cancelled" && status !== "canceled" && status !== "refunded";
+  });
   const paymentIds = Array.from(new Set(bets.map((bet) => stringValue(bet, ["pagamento_id"])).filter(Boolean)));
 
   if (paymentIds.length === 0) {
@@ -642,8 +653,7 @@ async function getConfirmedRevenueForMatch(matchId: string) {
   const { data: betsData, error: betsError } = await supabase
     .from("apostas")
     .select("pagamento_id")
-    .eq("jogo_id", matchId)
-    .eq("status", "confirmed");
+    .eq("jogo_id", matchId);
 
   if (betsError) {
     return 0;
@@ -699,6 +709,60 @@ export async function getUpcomingMatches() {
       return matchFromRow(row, confirmedGuesses, confirmedRevenue, index);
     })
   );
+}
+
+export async function getRoundVisitorsCount(matchId: string) {
+  const supabase = getSupabaseServerClient() ?? getSupabaseServer();
+
+  if (!supabase || !matchId) {
+    return 0;
+  }
+
+  const { count, error } = await supabase
+    .from("rodada_visitantes")
+    .select("id", { count: "exact", head: true })
+    .eq("jogo_id", matchId);
+
+  if (error) {
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
+export async function getConfirmedPaymentsCountForMatch(matchId: string) {
+  const supabase = getSupabaseServerClient() ?? getSupabaseServer();
+
+  if (!supabase || !matchId) {
+    return 0;
+  }
+
+  const { data: betsData, error: betsError } = await supabase
+    .from("apostas")
+    .select("pagamento_id")
+    .eq("jogo_id", matchId);
+
+  if (betsError) {
+    return 0;
+  }
+
+  const paymentIds = Array.from(new Set(((betsData ?? []) as DbRow[]).map((bet) => stringValue(bet, ["pagamento_id"])).filter(Boolean)));
+
+  if (paymentIds.length === 0) {
+    return 0;
+  }
+
+  const { count, error } = await supabase
+    .from("pagamentos")
+    .select("id", { count: "exact", head: true })
+    .in("id", paymentIds)
+    .in("status", PAID_PAYMENT_STATUSES);
+
+  if (error) {
+    return 0;
+  }
+
+  return count ?? 0;
 }
 
 export async function getNextMatch() {

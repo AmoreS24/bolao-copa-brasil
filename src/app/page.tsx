@@ -1,6 +1,6 @@
 import { CalendarDays, CheckCircle2, CircleDollarSign, Clock, CreditCard, Flame, MessageCircle, Target, Trophy, Users, Wallet } from "lucide-react";
 import Link from "next/link";
-import { getClosedRounds, getNextMatch, getRankingPlayers, getUpcomingMatches } from "@/data/supabase-live";
+import { getClosedRounds, getConfirmedPaymentsCountForMatch, getNextMatch, getRankingPlayers, getRoundVisitorsCount, getUpcomingMatches } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 import { countryFlag, countryWithFlag } from "@/lib/countries";
 import { MatchCountdown } from "@/components/match-countdown";
@@ -12,6 +12,8 @@ import { RoundVisitorTracker } from "@/components/round-visitor-tracker";
 import { OFFICIAL_WHATSAPP_GROUP_URL } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 const CURRENT_ROUND_BASE_ENTRY = 10;
 const ROUND_THREE_MINIMUM_PRIZE = 250;
@@ -52,6 +54,10 @@ export default async function Home() {
   }
 
   const displayMatch = match;
+  const [visitorsCount, confirmedPaymentsCount] = await Promise.all([
+    getRoundVisitorsCount(displayMatch.id),
+    getConfirmedPaymentsCountForMatch(displayMatch.id)
+  ]);
 
   const publicEntryValue = displayMatch.entryValue + displayMatch.operationalFee;
   const currentMinimumPrize = ROUND_THREE_MINIMUM_PRIZE;
@@ -80,6 +86,17 @@ export default async function Home() {
   );
   const homeFlag = countryFlag(displayMatch.homeTeam);
   const awayFlag = countryFlag(displayMatch.awayTeam);
+
+  console.log("[Home data debug]", {
+    activeMatchId: displayMatch.id,
+    activeMatch: `${displayMatch.homeTeam} x ${displayMatch.awayTeam}`,
+    status: displayMatch.status,
+    bettingClosesAt: displayMatch.bettingClosesAt,
+    confirmedPayments: confirmedPaymentsCount,
+    confirmedGuesses: currentRoundConfirmedGuesses,
+    currentPrize: currentRoundPrize,
+    visitors: visitorsCount
+  });
 
   return (
     <>
