@@ -7,8 +7,10 @@ import { RankingScoreForm } from "@/components/ranking-score-form";
 import { RoundExpensesManager } from "@/components/round-expenses-manager";
 import { AdminGamesManager } from "@/components/admin-games-manager";
 import { AdminBetsPanel } from "@/components/admin-bets-panel";
+import { AdminPostGenerator } from "@/components/admin-post-generator";
+import { AdminParticipantSearch } from "@/components/admin-participant-search";
 import { currency } from "@/lib/utils";
-import { getAdminStats } from "@/data/supabase-live";
+import { getAdminStats, getClosedRounds } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
 import { isMasterUser } from "@/lib/admin";
 
@@ -33,7 +35,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: { ori
     );
   }
 
-  const stats = await getAdminStats();
+  const [stats, closedRounds] = await Promise.all([getAdminStats(), getClosedRounds()]);
   const activeOriginGame = normalizeOriginGameFilter(searchParams?.origemJogo);
   const originGameOptions = stats.matches.map((match) => ({
     id: match.id,
@@ -102,9 +104,15 @@ export default async function AdminPage({ searchParams }: { searchParams?: { ori
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <StatCard icon={Users} label="Visitantes" value={`${stats.roundConversion.visitors}`} tone="blue" />
           <StatCard icon={UserPlus} label="Cadastros" value={`${stats.roundConversion.signups}`} />
+          <StatCard icon={Edit3} label="Palpites" value={`${stats.roundConversion.guesses}`} />
           <StatCard icon={CheckCircle2} label="Pagamentos confirmados" value={`${stats.roundConversion.confirmedPayments}`} tone="yellow" />
           <StatCard icon={Percent} label="Taxa cadastro" value={`${stats.roundConversion.signupRate}%`} />
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard icon={BarChart3} label="Cadastro para palpite" value={`${stats.roundConversion.signupToGuessRate}%`} />
+          <StatCard icon={BarChart3} label="Palpite para pagamento" value={`${stats.roundConversion.guessToPaymentRate}%`} tone="blue" />
           <StatCard icon={BarChart3} label="Taxa conversão" value={`${stats.roundConversion.conversionRate}%`} tone="blue" />
+          <StatCard icon={CircleDollarSign} label="Custo por pagamento" value={currency(stats.roundConversion.costPerPayment)} tone="yellow" />
         </div>
       </section>
       <section className="mt-10">
@@ -167,9 +175,11 @@ export default async function AdminPage({ searchParams }: { searchParams?: { ori
         <RoundExpensesManager matches={expenseMatches} expenses={stats.financial.expenses} />
       </section>
       <section className="mt-10">
-        <SectionTitle eyebrow="Apuração" title="Encerrar rodada" />
+        <SectionTitle eyebrow="Apuração" title="Resultado e vencedores" />
         <CloseRoundForm matches={closableMatches} />
       </section>
+      <AdminPostGenerator matches={stats.matches} closedRounds={closedRounds} />
+      <AdminParticipantSearch />
       <section className="mt-10">
         <SectionTitle eyebrow="Ranking da Torcida" title="Apuração Ranking" />
         <RankingScoreForm matches={stats.rankingMatches} />

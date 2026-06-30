@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { currency } from "@/lib/utils";
 
 type CloseRoundMatch = {
   id: string;
@@ -12,10 +13,25 @@ type CloseRoundFormProps = {
   matches: CloseRoundMatch[];
 };
 
+type CloseRoundResult = {
+  participacoes_confirmadas: number;
+  vencedores: number;
+  valor_por_vencedor: number;
+  valor_total_premiacao: number;
+  lista_vencedores: Array<{
+    nome: string;
+    telefone: string;
+    palpite: string;
+    valor: number;
+  }>;
+};
+
 export function CloseRoundForm({ matches }: CloseRoundFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [result, setResult] = useState<CloseRoundResult | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,6 +44,8 @@ export function CloseRoundForm({ matches }: CloseRoundFormProps) {
     const formData = new FormData(event.currentTarget);
     setLoading(true);
     setMessage("");
+    setResult(null);
+    setCopied(false);
 
     try {
       const response = await fetch("/api/admin/encerrar-rodada", {
@@ -49,12 +67,38 @@ export function CloseRoundForm({ matches }: CloseRoundFormProps) {
       }
 
       setMessage(payload.message || "Rodada encerrada com sucesso.");
+      setResult({
+        participacoes_confirmadas: Number(payload.participacoes_confirmadas ?? 0),
+        vencedores: Number(payload.vencedores ?? 0),
+        valor_por_vencedor: Number(payload.valor_por_vencedor ?? 0),
+        valor_total_premiacao: Number(payload.valor_total_premiacao ?? 0),
+        lista_vencedores: Array.isArray(payload.lista_vencedores) ? payload.lista_vencedores : []
+      });
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível encerrar a rodada.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function copyWinners() {
+    if (!result) {
+      return;
+    }
+
+    const text = result.lista_vencedores.length > 0
+      ? [
+        `Total de vencedores: ${result.vencedores}`,
+        `Premiação total: ${currency(result.valor_total_premiacao)}`,
+        `Valor por vencedor: ${currency(result.valor_por_vencedor)}`,
+        "",
+        ...result.lista_vencedores.map((winner) => `${winner.nome} (${winner.telefone}) - Palpite ${winner.palpite} - ${currency(winner.valor)}`)
+      ].join("\n")
+      : `Rodada sem vencedores. Participações confirmadas: ${result.participacoes_confirmadas}.`;
+
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
   }
 
   return (
@@ -90,6 +134,45 @@ export function CloseRoundForm({ matches }: CloseRoundFormProps) {
         {loading ? "Encerrando..." : "Encerrar rodada"}
       </button>
       {message ? <p className="text-sm font-bold text-brasil-green">{message}</p> : null}
+      {result ? (
+        <div className="grid gap-3 rounded-lg bg-brasil-light p-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <p className="text-xs font-black uppercase text-slate-500">Participações</p>
+              <p className="text-2xl font-black text-brasil-navy">{result.participacoes_confirmadas}</p>
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase text-slate-500">Vencedores</p>
+              <p className="text-2xl font-black text-brasil-green">{result.vencedores}</p>
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase text-slate-500">Valor individual</p>
+              <p className="text-2xl font-black text-brasil-navy">{currency(result.valor_por_vencedor)}</p>
+            </div>
+          </div>
+          {result.lista_vencedores.length > 0 ? (
+            <div className="overflow-hidden rounded-lg bg-white">
+              {result.lista_vencedores.map((winner) => (
+                <div key={`${winner.nome}-${winner.palpite}`} className="flex flex-col gap-1 border-b border-slate-100 p-3 text-sm font-semibold text-slate-700 last:border-0 md:flex-row md:items-center md:justify-between">
+                  <span className="font-black text-brasil-navy">{winner.nome}</span>
+                  <span>{winner.telefone}</span>
+                  <span>Palpite {winner.palpite}</span>
+                  <span className="font-black text-brasil-green">{currency(winner.valor)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="font-semibold text-slate-700">Nenhum participante acertou o placar exato.</p>
+          )}
+          <button
+            type="button"
+            onClick={() => void copyWinners()}
+            className="min-h-10 rounded-full bg-brasil-navy px-4 text-sm font-black text-white"
+          >
+            {copied ? "Lista copiada" : "Copiar lista dos vencedores"}
+          </button>
+        </div>
+      ) : null}
       {matches.length === 0 ? <p className="text-sm font-semibold text-slate-600">Nenhum jogo aberto ou em andamento.</p> : null}
     </form>
   );

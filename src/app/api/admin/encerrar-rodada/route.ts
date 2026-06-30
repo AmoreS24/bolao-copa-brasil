@@ -97,6 +97,17 @@ export async function POST(request: Request) {
     )
   );
 
+  let winnersPayload: Array<{
+    jogo_id: string;
+    aposta_id: string;
+    perfil_id: string;
+    nome: string;
+    telefone_mascarado: string;
+    palpite_casa: number;
+    palpite_visitante: number;
+    valor_premio: number;
+  }> = [];
+
   if (winnerBets.length > 0) {
     const profileIds = Array.from(new Set(winnerBets.map((bet) => asString(bet.perfil_id)).filter(Boolean)));
     const { data: profilesData } = profileIds.length
@@ -104,7 +115,7 @@ export async function POST(request: Request) {
       : { data: [] };
     const profilesById = new Map(((profilesData ?? []) as DbRow[]).map((profile) => [asString(profile.id), profile]));
 
-    const winnersPayload = winnerBets.map((bet) => {
+    winnersPayload = winnerBets.map((bet) => {
       const profile = profilesById.get(asString(bet.perfil_id)) ?? {};
 
       return {
@@ -130,6 +141,13 @@ export async function POST(request: Request) {
     message: winnerBets.length > 0 ? "Rodada encerrada com vencedores." : "Rodada encerrada e acumulada.",
     participacoes_confirmadas: bets.length,
     vencedores: winnerBets.length,
-    valor_por_vencedor: winnerPrize
+    valor_por_vencedor: winnerPrize,
+    valor_total_premiacao: prizeValue,
+    lista_vencedores: winnersPayload.map((winner) => ({
+      nome: winner.nome,
+      telefone: winner.telefone_mascarado,
+      palpite: `${winner.palpite_casa} x ${winner.palpite_visitante}`,
+      valor: winner.valor_premio
+    }))
   });
 }

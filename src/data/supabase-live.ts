@@ -224,9 +224,13 @@ export type AdminFinancialOverview = {
 export type AdminRoundConversion = {
   visitors: number;
   signups: number;
+  guesses: number;
   confirmedPayments: number;
   signupRate: number;
+  signupToGuessRate: number;
+  guessToPaymentRate: number;
   conversionRate: number;
+  costPerPayment: number;
 };
 
 export type AdminRoundExpense = {
@@ -544,7 +548,7 @@ function matchFromRow(row: DbRow, confirmedGuesses: number, confirmedRevenue = 0
     ["data_de_correspondencia", "starts_at", "data", "data_jogo"],
     new Date().toISOString()
   );
-  const bettingClosesAt = minutesBefore(startsAt, 15);
+  const bettingClosesAt = stringValue(row, ["apostas_encerram_em"], minutesBefore(startsAt, 15));
   const capacity = numberValue(row, ["limite_apostas", "capacidade", "vagas"], DEFAULT_CAPACITY);
   const entryValue = numberValue(row, ["valor_palpite", "entry_value"], ENTRY_VALUE);
   const operationalFee = numberValue(row, ["taxa_operacional", "operational_fee"], OPERATIONAL_FEE);
@@ -1185,9 +1189,13 @@ export async function getAdminStats() {
       roundConversion: {
         visitors: 0,
         signups: 0,
+        guesses: 0,
         confirmedPayments: 0,
         signupRate: 0,
-        conversionRate: 0
+        signupToGuessRate: 0,
+        guessToPaymentRate: 0,
+        conversionRate: 0,
+        costPerPayment: 0
       } as AdminRoundConversion,
       inviteTools: {
         currentMatch: null,
@@ -1558,9 +1566,13 @@ export async function getAdminStats() {
   let roundConversion: AdminRoundConversion = {
     visitors: 0,
     signups: 0,
+    guesses: 0,
     confirmedPayments: 0,
     signupRate: 0,
-    conversionRate: 0
+    signupToGuessRate: 0,
+    guessToPaymentRate: 0,
+    conversionRate: 0,
+    costPerPayment: 0
   };
 
   if (activeMatch) {
@@ -1579,6 +1591,7 @@ export async function getAdminStats() {
         .map((bet) => stringValue(bet, ["pagamento_id"]))
         .filter((paymentId) => paidPaymentsById.has(paymentId))
     );
+    const guesses = allBets.filter((bet) => stringValue(bet, ["jogo_id"]) === activeMatch.id).length;
     const [visitorsResult, signupsResult] = await Promise.all([
       supabase
         .from("rodada_visitantes")
@@ -1595,9 +1608,13 @@ export async function getAdminStats() {
     roundConversion = {
       visitors,
       signups,
+      guesses,
       confirmedPayments,
       signupRate: visitors > 0 ? Number(((signups / visitors) * 100).toFixed(1)) : 0,
-      conversionRate: signups > 0 ? Number(((confirmedPayments / signups) * 100).toFixed(1)) : 0
+      signupToGuessRate: signups > 0 ? Number(((guesses / signups) * 100).toFixed(1)) : 0,
+      guessToPaymentRate: guesses > 0 ? Number(((confirmedPayments / guesses) * 100).toFixed(1)) : 0,
+      conversionRate: signups > 0 ? Number(((confirmedPayments / signups) * 100).toFixed(1)) : 0,
+      costPerPayment: confirmedPayments > 0 ? expensesTotal / confirmedPayments : 0
     };
   }
 

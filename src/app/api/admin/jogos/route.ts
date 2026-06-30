@@ -11,6 +11,7 @@ type GameRequest = {
   time_da_casa?: string;
   time_visitante?: string;
   data_de_correspondencia?: string;
+  apostas_encerram_em?: string;
   local?: string;
   cidade?: string;
   grupo?: string;
@@ -153,8 +154,9 @@ export async function POST(request: Request) {
   const homeTeam = clean(body.time_da_casa);
   const awayTeam = clean(body.time_visitante);
   const startsAt = toStoredDate(clean(body.data_de_correspondencia));
+  const requestedBettingClosesAt = toStoredDate(clean(body.apostas_encerram_em));
   const status = GAME_STATUSES.has(body.status_jogo ?? "aguardando") ? body.status_jogo ?? "aguardando" : "aguardando";
-  const bettingClosesAt = minutesBefore(startsAt, 15);
+  const bettingClosesAt = requestedBettingClosesAt || minutesBefore(startsAt, 15);
 
   if (!homeTeam || !awayTeam || !startsAt || !bettingClosesAt) {
     return NextResponse.json({ error: "Informe times, data e horário do jogo." }, { status: 400 });

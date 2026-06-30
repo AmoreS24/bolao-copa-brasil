@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Edit3, Plus, Trash2, Trophy } from "lucide-react";
 import type { LiveMatch } from "@/data/supabase-live";
+import { countryFlag } from "@/lib/countries";
 import { currency } from "@/lib/utils";
 
 type AdminGamesManagerProps = {
@@ -15,6 +16,7 @@ type GameFormState = {
   time_da_casa: string;
   time_visitante: string;
   data_de_correspondencia: string;
+  apostas_encerram_em: string;
   local: string;
   cidade: string;
   grupo: string;
@@ -28,6 +30,7 @@ const emptyForm: GameFormState = {
   time_da_casa: "",
   time_visitante: "",
   data_de_correspondencia: "",
+  apostas_encerram_em: "",
   local: "",
   cidade: "",
   grupo: "",
@@ -79,6 +82,7 @@ function formFromGame(game: LiveMatch): GameFormState {
     time_da_casa: game.homeTeam,
     time_visitante: game.awayTeam,
     data_de_correspondencia: toInputDate(game.startsAt),
+    apostas_encerram_em: toInputDate(game.bettingClosesAt),
     local: game.venue === "Estádio a confirmar" ? "" : game.venue,
     cidade: game.city,
     grupo: game.group,
@@ -148,6 +152,18 @@ export function AdminGamesManager({ games }: AdminGamesManagerProps) {
     setMessage("");
   }
 
+  function handleNextRound() {
+    setForm({
+      ...emptyForm,
+      status_jogo: "aberto",
+      premio_garantido: "250",
+      valor_palpite: "10"
+    });
+    setIsFormVisible(true);
+    setError("");
+    setMessage("");
+  }
+
   function handleEdit(game: LiveMatch) {
     setForm(formFromGame(game));
     setIsFormVisible(true);
@@ -170,14 +186,23 @@ export function AdminGamesManager({ games }: AdminGamesManagerProps) {
           <p className="font-black text-brasil-navy">Jogos e rodadas</p>
           <p className="text-sm font-semibold text-slate-600">Crie, edite e abra a rodada atual sem mexer no banco manualmente.</p>
         </div>
-        <button
-          type="button"
-          onClick={handleNewGame}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-brasil-green px-5 font-black text-white shadow-field"
-        >
-          <Plus size={18} aria-hidden />
-          Novo jogo
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleNextRound}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-brasil-green px-5 font-black text-white shadow-field"
+          >
+            <Plus size={18} aria-hidden />
+            Abrir próxima rodada
+          </button>
+          <button
+            type="button"
+            onClick={handleNewGame}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-5 font-black text-brasil-navy shadow-field"
+          >
+            Novo jogo
+          </button>
+        </div>
       </div>
 
       {message ? (
@@ -208,6 +233,9 @@ export function AdminGamesManager({ games }: AdminGamesManagerProps) {
                 className="min-h-11 rounded-lg border border-slate-200 px-3 font-semibold outline-none focus:border-brasil-green"
               />
             </label>
+            <div className="rounded-lg bg-brasil-light p-3 text-sm font-black text-brasil-navy md:col-span-2">
+              Bandeiras: {countryFlag(form.time_da_casa) || "sem bandeira"} {form.time_da_casa || "Mandante"} x {form.time_visitante || "Visitante"} {countryFlag(form.time_visitante) || "sem bandeira"}
+            </div>
             <label className="grid gap-2 text-sm font-black text-brasil-navy">
               Data e hora
               <input
@@ -215,6 +243,16 @@ export function AdminGamesManager({ games }: AdminGamesManagerProps) {
                 type="datetime-local"
                 value={form.data_de_correspondencia}
                 onChange={(event) => updateField("data_de_correspondencia", event.target.value)}
+                className="min-h-11 rounded-lg border border-slate-200 px-3 font-semibold outline-none focus:border-brasil-green"
+              />
+            </label>
+            <label className="grid gap-2 text-sm font-black text-brasil-navy">
+              Encerramento dos palpites
+              <input
+                required
+                type="datetime-local"
+                value={form.apostas_encerram_em}
+                onChange={(event) => updateField("apostas_encerram_em", event.target.value)}
                 className="min-h-11 rounded-lg border border-slate-200 px-3 font-semibold outline-none focus:border-brasil-green"
               />
             </label>
