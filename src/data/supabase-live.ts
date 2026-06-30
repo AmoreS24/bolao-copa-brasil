@@ -154,7 +154,9 @@ export type AdminBetRow = {
   id: string;
   paymentId: string;
   userName: string;
+  userCity: string;
   userPhone: string;
+  userCpf: string;
   originRef: string;
   match: string;
   guess: string;
@@ -162,6 +164,7 @@ export type AdminBetRow = {
   paymentStatus: string;
   paidValue: number;
   createdAtLabel: string;
+  createdAt: string;
   filterStatus: Exclude<AdminBetFilter, "todos"> | "outros";
   canConfirmManually: boolean;
 };
@@ -1211,7 +1214,7 @@ export async function getAdminStats() {
     { data: paidPayments },
     { data: referralProfiles },
     { data: allGamesData },
-    { data: allConfirmedBetsData },
+    { data: allBetsData },
     { data: allWinnersData },
     expensesResult
   ] = await Promise.all([
@@ -1220,7 +1223,7 @@ export async function getAdminStats() {
     supabase.from("pagamentos").select("id,valor_total,origem_ref").in("status", PAID_PAYMENT_STATUSES),
     supabase.from("perfis").select("origem_ref"),
     supabase.from("jogos").select("id,time_da_casa,time_visitante,status_jogo,data_de_correspondencia"),
-    supabase.from("apostas").select("id,jogo_id,pagamento_id,perfil_id,status").eq("status", "confirmed"),
+    supabase.from("apostas").select("id,jogo_id,pagamento_id,perfil_id,status"),
     supabase.from("rodada_vencedores").select("id,jogo_id,valor_premio"),
     supabase.from("rodada_despesas").select("id,jogo_id,descricao,valor,criado_em").order("criado_em", { ascending: false })
   ]);
@@ -1303,10 +1306,11 @@ export async function getAdminStats() {
     .sort((a, b) => b.paidTotal - a.paidTotal || b.confirmedPayments - a.confirmedPayments || b.signups - a.signups)
     .slice(0, 10);
   const paidPaymentsById = new Map(confirmedPaymentsRows.map((payment) => [stringValue(payment, ["id"]), payment]));
-  const allConfirmedBets = (allConfirmedBetsData ?? []) as DbRow[];
+  const allBets = (allBetsData ?? []) as DbRow[];
+  const allPaidBets = allBets.filter((bet) => paidPaymentsById.has(stringValue(bet, ["pagamento_id"])));
   const paymentGameIds = new Map<string, Set<string>>();
 
-  for (const bet of allConfirmedBets) {
+  for (const bet of allPaidBets) {
     const paymentId = stringValue(bet, ["pagamento_id"]);
     const gameId = stringValue(bet, ["jogo_id"]);
 
@@ -1380,7 +1384,7 @@ export async function getAdminStats() {
   const financialRounds = gamesRows
     .map((game): AdminFinancialRoundRow => {
       const gameId = stringValue(game, ["id"]);
-      const gameBets = allConfirmedBets.filter((bet) => stringValue(bet, ["jogo_id"]) === gameId);
+      const gameBets = allPaidBets.filter((bet) => stringValue(bet, ["jogo_id"]) === gameId);
       const paymentIds = Array.from(new Set(gameBets.map((bet) => stringValue(bet, ["pagamento_id"])).filter(Boolean)));
       const collected = paymentIds.reduce((total, paymentId) => {
         const payment = paidPaymentsById.get(paymentId);
@@ -1416,7 +1420,7 @@ export async function getAdminStats() {
     operationalBalance: paidTotal - prizePaidTotal - expensesTotal,
     closedRounds: gamesRows.filter((game) => stringValue(game, ["status_jogo"]) === "encerrado").length,
     openRounds: gamesRows.filter((game) => stringValue(game, ["status_jogo"], "aberto") === "aberto").length,
-    confirmedParticipations: allConfirmedBets.length,
+    confirmedParticipations: allPaidBets.length,
     averageTicket: paymentsConfirmed > 0 ? paidTotal / paymentsConfirmed : 0,
     rounds: financialRounds,
     expenses
@@ -1430,8 +1434,8 @@ export async function getAdminStats() {
   const currentInviteMatch = matches.find((match) => isBettingWindowOpen(match)) ?? matches.find(isBrazilJapanRound) ?? null;
   const currentInviteMatchId = currentInviteMatch?.id ?? "";
   const previousBets = currentInviteMatchId
-    ? allConfirmedBets.filter((bet) => stringValue(bet, ["jogo_id"]) !== currentInviteMatchId)
-    : allConfirmedBets;
+    ? allPaidBets.filter((bet) => stringValue(bet, ["jogo_id"]) !== currentInviteMatchId)
+    : allPaidBets;
   const inviteProfileIds = Array.from(new Set(previousBets.map((bet) => stringValue(bet, ["perfil_id"])).filter(Boolean)));
   const [{ data: inviteProfilesData }, { data: inviteGamesData }] = await Promise.all([
     inviteProfileIds.length
@@ -1447,7 +1451,7 @@ export async function getAdminStats() {
   const inviteProfilesById = new Map(((inviteProfilesData ?? []) as DbRow[]).map((profile) => [stringValue(profile, ["id"]), profile]));
   const inviteGamesById = new Map(((inviteGamesData ?? []) as DbRow[]).map((game) => [stringValue(game, ["id"]), game]));
   const currentRoundProfileIds = new Set(
-    allConfirmedBets
+    allPaidBets
       .filter((bet) => stringValue(bet, ["jogo_id"]) === currentInviteMatchId)
       .map((bet) => stringValue(bet, ["perfil_id"]))
       .filter(Boolean)
@@ -1506,7 +1510,7 @@ export async function getAdminStats() {
 
   const [{ data: profilesData }, { data: paymentsData }, { data: gamesData }] = await Promise.all([
     profileIds.length
-      ? supabase.from("perfis").select("id,nome,telefone,origem_ref").in("id", profileIds)
+      ? supabase.from("perfis").select("id,nome,telefone,cpf,origem_ref").in("id", profileIds)
       : Promise.resolve({ data: [] }),
     paymentIds.length
       ? supabase.from("pagamentos").select("id,status,valor_total,origem_ref,criado_em").in("id", paymentIds)
@@ -1534,7 +1538,9 @@ export async function getAdminStats() {
       id: stringValue(bet, ["id"]),
       paymentId,
       userName: stringValue(profile, ["nome"], "Participante"),
+      userCity: stringValue(profile, ["cidade"], ""),
       userPhone: stringValue(profile, ["telefone"], ""),
+      userCpf: stringValue(profile, ["cpf"], ""),
       originRef: stringValue(payment, ["origem_ref"], stringValue(profile, ["origem_ref"], "-")) || "-",
       match: `${stringValue(game, ["time_da_casa"], "Brasil")} x ${stringValue(game, ["time_visitante"], "Adversário")}`,
       guess: `${numberValue(bet, ["gols_brasil"], 0)} x ${numberValue(bet, ["gols_adversario"], 0)}`,
@@ -1542,6 +1548,7 @@ export async function getAdminStats() {
       paymentStatus,
       paidValue: numberValue(payment, ["valor_total"], 0),
       createdAtLabel: dateTimeLabel(stringValue(bet, ["criado_em"], stringValue(payment, ["criado_em"]))),
+      createdAt: stringValue(bet, ["criado_em"], stringValue(payment, ["criado_em"])),
       filterStatus: isConfirmed ? "confirmados" : isPending ? "pendentes" : "outros",
       canConfirmManually: Boolean(paymentId && isPending && !isConfirmed)
     };
@@ -1567,7 +1574,7 @@ export async function getAdminStats() {
       .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())[0]?.startsAt;
     const openedAt = stringValue((activeGameData ?? {}) as DbRow, ["aberto_em"], fallbackOpenedAt ?? "");
     const currentRoundPaymentIds = new Set(
-      allConfirmedBets
+      allPaidBets
         .filter((bet) => stringValue(bet, ["jogo_id"]) === activeMatch.id)
         .map((bet) => stringValue(bet, ["pagamento_id"]))
         .filter((paymentId) => paidPaymentsById.has(paymentId))

@@ -2,42 +2,23 @@ import { Banknote, BarChart3, CheckCircle2, CircleDollarSign, Clock, Edit3, Perc
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { PageShell, SectionTitle, StatCard } from "@/components/ui";
-import { ManualPaymentConfirmButton } from "@/components/manual-payment-confirm-button";
 import { CloseRoundForm } from "@/components/close-round-form";
 import { RankingScoreForm } from "@/components/ranking-score-form";
 import { RoundExpensesManager } from "@/components/round-expenses-manager";
-import { RoundInvitesManager } from "@/components/round-invites-manager";
 import { AdminGamesManager } from "@/components/admin-games-manager";
+import { AdminBetsPanel } from "@/components/admin-bets-panel";
 import { currency } from "@/lib/utils";
-import { getAdminStats, type AdminBetFilter } from "@/data/supabase-live";
+import { getAdminStats } from "@/data/supabase-live";
 import { getCurrentUser } from "@/lib/auth";
 import { isMasterUser } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
-function statusLabel(status: string) {
-  const labels: Record<string, string> = {
-    confirmed: "Confirmado",
-    paid: "Pago",
-    received: "Recebido",
-    PAYMENT_RECEIVED: "Recebido",
-    pending_payment: "Aguardando pagamento",
-    pending: "Pendente",
-    aguardando_pagamento: "Aguardando pagamento"
-  };
-
-  return labels[status] ?? status;
-}
-
-function normalizeFilter(value?: string): AdminBetFilter {
-  return value === "confirmados" || value === "pendentes" ? value : "todos";
-}
-
 function normalizeOriginGameFilter(value?: string) {
   return value?.trim() || "todos";
 }
 
-export default async function AdminPage({ searchParams }: { searchParams?: { filtro?: string; origemJogo?: string } }) {
+export default async function AdminPage({ searchParams }: { searchParams?: { origemJogo?: string } }) {
   const user = getCurrentUser();
   const isMaster = isMasterUser(user);
 
@@ -53,10 +34,6 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
   }
 
   const stats = await getAdminStats();
-  const activeFilter = normalizeFilter(searchParams?.filtro);
-  const filteredBets = activeFilter === "todos"
-    ? stats.bets
-    : stats.bets.filter((bet) => bet.filterStatus === activeFilter);
   const activeOriginGame = normalizeOriginGameFilter(searchParams?.origemJogo);
   const originGameOptions = stats.matches.map((match) => ({
     id: match.id,
@@ -100,7 +77,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
     <PageShell>
       <div className="mb-6">
         <p className="font-black uppercase text-brasil-green">Painel administrativo</p>
-        <h1 className="text-3xl font-black text-brasil-navy md:text-4xl">Controle inicial do MVP</h1>
+        <h1 className="text-3xl font-black text-brasil-navy md:text-4xl">Central de Operações</h1>
       </div>
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <StatCard icon={Users} label="Usuarios" value={`${stats.users}`} />
@@ -131,28 +108,8 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
         </div>
       </section>
       <section className="mt-10">
-        <SectionTitle eyebrow="Rodadas" title="Gerenciar Jogos" />
-        <AdminGamesManager games={stats.matches} />
-      </section>
-      <section className="mt-10">
-        <SectionTitle eyebrow="Resultado geral" title="Financeiro" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={Banknote} label="Arrecadação total" value={currency(stats.financial.totalCollected)} tone="yellow" />
-          <StatCard icon={Trophy} label="Premiações pagas" value={currency(stats.financial.prizesPaid)} />
-          <StatCard icon={ReceiptText} label="Despesas totais" value={currency(stats.financial.expensesTotal)} />
-          <StatCard icon={Wallet} label="Saldo operacional real" value={currency(stats.financial.operationalBalance)} tone="blue" />
-          <StatCard icon={CheckCircle2} label="Rodadas encerradas" value={`${stats.financial.closedRounds}`} />
-          <StatCard icon={Clock} label="Rodadas abertas" value={`${stats.financial.openRounds}`} tone="yellow" />
-          <StatCard icon={Users} label="Participações confirmadas" value={`${stats.financial.confirmedParticipations}`} tone="blue" />
-          <StatCard icon={CircleDollarSign} label="Ticket médio" value={currency(stats.financial.averageTicket)} />
-        </div>
-        <div className="mt-5">
-          <RoundExpensesManager matches={expenseMatches} expenses={stats.financial.expenses} />
-        </div>
-        <div className="mt-5 overflow-hidden rounded-lg bg-white shadow-field">
-          <div className="border-b border-slate-100 p-4">
-            <h3 className="text-xl font-black text-brasil-navy">Resumo por rodada</h3>
-          </div>
+        <SectionTitle eyebrow="Rodadas" title="Resumo por rodada" />
+        <div className="overflow-hidden rounded-lg bg-white shadow-field">
           <div className="overflow-x-auto">
             <table className="min-w-[920px] w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs font-black uppercase text-slate-500">
@@ -189,16 +146,33 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
         </div>
       </section>
       <section className="mt-10">
+        <SectionTitle eyebrow="Rodadas" title="Gerenciar Jogos" />
+        <AdminGamesManager games={stats.matches} />
+      </section>
+      <section className="mt-10">
+        <SectionTitle eyebrow="Resultado geral" title="Financeiro" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard icon={Banknote} label="Arrecadação total" value={currency(stats.financial.totalCollected)} tone="yellow" />
+          <StatCard icon={Trophy} label="Premiações pagas" value={currency(stats.financial.prizesPaid)} />
+          <StatCard icon={ReceiptText} label="Despesas totais" value={currency(stats.financial.expensesTotal)} />
+          <StatCard icon={Wallet} label="Saldo operacional real" value={currency(stats.financial.operationalBalance)} tone="blue" />
+          <StatCard icon={CheckCircle2} label="Rodadas encerradas" value={`${stats.financial.closedRounds}`} />
+          <StatCard icon={Clock} label="Rodadas abertas" value={`${stats.financial.openRounds}`} tone="yellow" />
+          <StatCard icon={Users} label="Participações confirmadas" value={`${stats.financial.confirmedParticipations}`} tone="blue" />
+          <StatCard icon={CircleDollarSign} label="Ticket médio" value={currency(stats.financial.averageTicket)} />
+        </div>
+      </section>
+      <section className="mt-10">
+        <SectionTitle eyebrow="Custos" title="Despesas" />
+        <RoundExpensesManager matches={expenseMatches} expenses={stats.financial.expenses} />
+      </section>
+      <section className="mt-10">
         <SectionTitle eyebrow="Apuração" title="Encerrar rodada" />
         <CloseRoundForm matches={closableMatches} />
       </section>
       <section className="mt-10">
         <SectionTitle eyebrow="Ranking da Torcida" title="Apuração Ranking" />
         <RankingScoreForm matches={stats.rankingMatches} />
-      </section>
-      <section className="mt-10">
-        <SectionTitle eyebrow="Reengajamento" title="Convites da Rodada" />
-        <RoundInvitesManager inviteTools={stats.inviteTools} />
       </section>
       <section className="mt-10">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -266,77 +240,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: { fil
           ) : null}
         </div>
       </section>
-      <section className="mt-10">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <SectionTitle eyebrow="Operação" title="Apostas realizadas" />
-          <div className="flex flex-wrap gap-2">
-            {[
-              ["Todos", "todos"],
-              ["Confirmados", "confirmados"],
-              ["Pendentes", "pendentes"]
-            ].map(([label, value]) => {
-              const selected = activeFilter === value;
-
-              return (
-                <Link
-                  key={value}
-                  href={value === "todos" ? "/admin" : `/admin?filtro=${value}`}
-                  className={`inline-flex min-h-10 items-center rounded-full px-4 text-sm font-black shadow-field ${
-                    selected ? "bg-brasil-green text-white" : "bg-white text-brasil-navy"
-                  }`}
-                >
-                  {label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-        <div className="mt-4 overflow-hidden rounded-lg bg-white shadow-field">
-          <div className="overflow-x-auto">
-            <table className="min-w-[980px] w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs font-black uppercase text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Usuário</th>
-                  <th className="px-4 py-3">Telefone</th>
-                  <th className="px-4 py-3">Origem/ref</th>
-                  <th className="px-4 py-3">Jogo</th>
-                  <th className="px-4 py-3">Placar</th>
-                  <th className="px-4 py-3">Aposta</th>
-                  <th className="px-4 py-3">Pagamento</th>
-                  <th className="px-4 py-3">Valor pago</th>
-                  <th className="px-4 py-3">Data/hora</th>
-                  <th className="px-4 py-3">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredBets.map((bet) => (
-                  <tr key={bet.id} className="font-semibold text-slate-700">
-                    <td className="px-4 py-3 font-black text-brasil-navy">{bet.userName}</td>
-                    <td className="px-4 py-3">{bet.userPhone || "-"}</td>
-                    <td className="px-4 py-3">{bet.originRef}</td>
-                    <td className="px-4 py-3">{bet.match}</td>
-                    <td className="px-4 py-3 font-black text-brasil-green">{bet.guess}</td>
-                    <td className="px-4 py-3">{statusLabel(bet.betStatus)}</td>
-                    <td className="px-4 py-3">{statusLabel(bet.paymentStatus)}</td>
-                    <td className="px-4 py-3 font-black text-brasil-navy">{currency(bet.paidValue)}</td>
-                    <td className="px-4 py-3">{bet.createdAtLabel || "-"}</td>
-                    <td className="px-4 py-3">
-                      {bet.canConfirmManually ? (
-                        <ManualPaymentConfirmButton paymentId={bet.paymentId} />
-                      ) : (
-                        <span className="text-xs font-bold text-slate-400">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filteredBets.length === 0 ? (
-            <div className="p-5 font-semibold text-slate-600">Nenhuma aposta encontrada para este filtro.</div>
-          ) : null}
-        </div>
-      </section>
+      <AdminBetsPanel bets={stats.bets} prizesPaid={stats.financial.prizesPaid} />
       <section className="mt-10">
         <div>
           <SectionTitle eyebrow="Acumulado" title="Atualizacao manual" />

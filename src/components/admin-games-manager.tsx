@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Edit3, Plus, Trophy } from "lucide-react";
+import { CalendarDays, Edit3, Plus, Trash2, Trophy } from "lucide-react";
 import type { LiveMatch } from "@/data/supabase-live";
 import { currency } from "@/lib/utils";
 
@@ -153,6 +153,14 @@ export function AdminGamesManager({ games }: AdminGamesManagerProps) {
     setIsFormVisible(true);
     setError("");
     setMessage("");
+  }
+
+  function handleDelete(game: LiveMatch) {
+    const confirmed = window.confirm(`Excluir a rodada ${game.homeTeam} x ${game.awayTeam}? Esta ação só será permitida se não houver apostas vinculadas.`);
+
+    if (confirmed) {
+      void send({ action: "delete", id: game.id }, "Rodada excluída com sucesso.");
+    }
   }
 
   return (
@@ -357,6 +365,14 @@ export function AdminGamesManager({ games }: AdminGamesManagerProps) {
                           Encerrar rodada
                         </button>
                       ) : null}
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(game)}
+                        className="inline-flex min-h-9 items-center gap-2 rounded-full bg-red-50 px-3 text-xs font-black text-red-700"
+                      >
+                        <Trash2 size={15} aria-hidden />
+                        Excluir
+                      </button>
                     </div>
                   </td>
                 </tr>

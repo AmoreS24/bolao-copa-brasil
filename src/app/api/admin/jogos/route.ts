@@ -6,7 +6,7 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 type GameStatus = "aguardando" | "aberto" | "encerrado";
 
 type GameRequest = {
-  action?: "save" | "open" | "close";
+  action?: "save" | "open" | "close" | "delete";
   id?: string;
   time_da_casa?: string;
   time_visitante?: string;
@@ -79,8 +79,30 @@ export async function POST(request: Request) {
   const action = body.action ?? "save";
   const id = clean(body.id);
 
-  if ((action === "open" || action === "close") && !id) {
+  if ((action === "open" || action === "close" || action === "delete") && !id) {
     return NextResponse.json({ error: "Jogo não encontrado." }, { status: 400 });
+  }
+
+  if (action === "delete") {
+    const { count: linkedBets } = await supabase
+      .from("apostas")
+      .select("id", { count: "exact", head: true })
+      .eq("jogo_id", id);
+
+    if ((linkedBets ?? 0) > 0) {
+      return NextResponse.json({ error: "Esta rodada possui apostas vinculadas e não pode ser excluída." }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from("jogos")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ ok: true });
   }
 
   if (action === "open") {
