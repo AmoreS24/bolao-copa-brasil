@@ -19,14 +19,14 @@ const CURRENT_ROUND_BASE_ENTRY = 10;
 const ROUND_THREE_MINIMUM_PRIZE = 250;
 const ROUND_GUESS_GOAL = 50;
 const PUBLIC_PRIZES_PAID_TOTAL = 700;
-const KNOCKOUT_STAGE_LABEL = "Mata-mata • 16 avos de final";
+const KNOCKOUT_STAGE_LABEL = "Mata-mata • Oitavas de final";
 const LAST_WINNERS = [
   { name: "Lidiane Santos Barreto", prize: 125 },
   { name: "Geicielle Mendes da Silva", prize: 125 }
 ];
 const KNOCKOUT_PATH = [
-  { stage: "16 avos de final", date: "29/06", time: "14h", match: "Brasil x Japão", home: "Brasil", away: "Japão", current: true },
-  { stage: "Oitavas de final", date: "05/07", time: "17h", match: "A definir", home: "", away: "", current: false },
+  { stage: "16 avos de final", date: "29/06", time: "14h", match: "Brasil x Japão", home: "Brasil", away: "Japão", current: false },
+  { stage: "Oitavas de final", date: "05/07", time: "17h", match: "Brasil x Noruega", home: "Brasil", away: "Noruega", current: true },
   { stage: "Quartas de final", date: "11/07", time: "18h", match: "A definir", home: "", away: "", current: false },
   { stage: "Semifinal", date: "15/07", time: "16h", match: "A definir", home: "", away: "", current: false },
   { stage: "Final", date: "19/07", time: "16h", match: "A definir", home: "", away: "", current: false }
@@ -144,6 +144,14 @@ export default async function Home() {
                 <p className="text-xs font-black uppercase text-brasil-yellow">💰 Cada palpite</p>
                 <p className="mt-1 text-xl font-black">{currency(publicEntryValue)}</p>
               </div>
+            </div>
+            <div className="mx-auto mt-3 max-w-2xl rounded-lg border border-brasil-yellow/70 bg-brasil-navy px-4 py-3 text-left text-white shadow-field">
+              <p className="text-sm font-black text-brasil-yellow">
+                🎁 Promoção especial: quem confirmar o palpite até sábado às 12h concorre a um PIX de R$ 50,00.
+              </p>
+              <p className="mt-1 text-xs font-semibold leading-relaxed text-white/82">
+                Pagamento confirmado até sábado às 12h. 1 número por participante. Sorteio sábado às 12h30. O PIX promocional não interfere no prêmio principal da rodada.
+              </p>
             </div>
             <div className="mx-auto mt-3 max-w-2xl rounded-lg border border-brasil-yellow bg-brasil-yellow p-1 shadow-[0_16px_42px_rgba(255,214,0,0.28)]">
               <div className="rounded-md bg-white px-4 py-4 text-left text-brasil-navy sm:px-5">
@@ -389,7 +397,7 @@ export default async function Home() {
           <SectionTitle eyebrow="Passo a passo" title="Como participar?" />
           <div className="grid gap-3 md:grid-cols-3">
             {[
-              { icon: Target, title: "① Escolha seu palpite.", text: "Defina o placar exato para Brasil x Japão." },
+              { icon: Target, title: "① Escolha seu palpite.", text: "Defina o placar exato para Brasil x Noruega." },
               { icon: CreditCard, title: "② Faça o PIX.", text: "Seu palpite entra na rodada depois da confirmação." },
               { icon: Trophy, title: "③ Acerte o placar e receba o prêmio.", text: "Os ganhadores recebem a premiação via PIX." }
             ].map((step) => (

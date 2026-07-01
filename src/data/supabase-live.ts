@@ -267,12 +267,12 @@ const MINIMUM_DISPLAY_PRIZE = 200;
 const DEFAULT_CAPACITY = 400;
 const DEFAULT_COMPETITION = "Copa do Mundo 2026";
 const CURRENT_FALLBACK_ROUND = {
-  id: "brasil-japao-2026-06-29",
+  id: "brasil-noruega-2026-07-05",
   homeTeam: "Brasil",
-  awayTeam: "Japão",
-  startsAt: "2026-06-29T14:00:00-03:00",
+  awayTeam: "Noruega",
+  startsAt: "2026-07-05T17:00:00-03:00",
   guaranteedPrize: 250,
-  group: "Mata-mata • 16 avos de final",
+  group: "Mata-mata • Oitavas de final",
   venue: "",
   city: "",
   competition: DEFAULT_COMPETITION
@@ -428,10 +428,10 @@ function displayedPrize(confirmedGuesses: number, entryValue: number) {
   return Math.max(MINIMUM_DISPLAY_PRIZE, confirmedGuesses * entryValue);
 }
 
-function isBrazilJapanRound(match: LiveMatch) {
+function isCurrentFallbackRound(match: LiveMatch) {
   return match.homeTeam.localeCompare("Brasil", "pt-BR", { sensitivity: "base" }) === 0
-    && match.awayTeam.localeCompare("Japão", "pt-BR", { sensitivity: "base" }) === 0
-    && match.startsAt.slice(0, 10) === "2026-06-29";
+    && match.awayTeam.localeCompare(CURRENT_FALLBACK_ROUND.awayTeam, "pt-BR", { sensitivity: "base" }) === 0
+    && match.startsAt.slice(0, 10) === CURRENT_FALLBACK_ROUND.startsAt.slice(0, 10);
 }
 
 function matchSignature(match: Pick<LiveMatch, "homeTeam" | "awayTeam" | "startsAt">) {
@@ -775,16 +775,16 @@ export async function getConfirmedPaymentsCountForMatch(matchId: string) {
 export async function getNextMatch() {
   const matches = await getUpcomingMatches();
   const now = Date.now();
+  const currentFallbackMatch = matches.find(isCurrentFallbackRound);
+
+  if (currentFallbackMatch) {
+    return withCurrentRoundDefaults(currentFallbackMatch);
+  }
+
   const openMatch = matches.find((match) => isBettingWindowOpen(match, now));
 
   if (openMatch) {
-    return isBrazilJapanRound(openMatch) ? withCurrentRoundDefaults(openMatch) : openMatch;
-  }
-
-  const brazilJapanMatch = matches.find(isBrazilJapanRound);
-
-  if (brazilJapanMatch) {
-    return withCurrentRoundDefaults(brazilJapanMatch);
+    return openMatch;
   }
 
   return fallbackCurrentRound();
@@ -798,13 +798,13 @@ export async function getMatchById(id: string) {
   const matches = await getUpcomingMatches();
   const match = matches.find((match) => match.id === id || slugFromTeams(match.homeTeam, match.awayTeam) === id);
 
-  if (match && isBrazilJapanRound(match)) {
+  if (match && isCurrentFallbackRound(match)) {
     return withCurrentRoundDefaults(match);
   }
 
   if (id === CURRENT_FALLBACK_ROUND.id || id === slugFromTeams(CURRENT_FALLBACK_ROUND.homeTeam, CURRENT_FALLBACK_ROUND.awayTeam)) {
-    return matches.find(isBrazilJapanRound)
-      ? withCurrentRoundDefaults(matches.find(isBrazilJapanRound)!)
+    return matches.find(isCurrentFallbackRound)
+      ? withCurrentRoundDefaults(matches.find(isCurrentFallbackRound)!)
       : fallbackCurrentRound();
   }
 
@@ -1439,7 +1439,7 @@ export async function getAdminStats() {
       id: match.id,
       label: `${match.homeTeam} x ${match.awayTeam} - ${match.officialResult || match.dateLabel}`
     }));
-  const currentInviteMatch = matches.find((match) => isBettingWindowOpen(match)) ?? matches.find(isBrazilJapanRound) ?? null;
+  const currentInviteMatch = matches.find((match) => isBettingWindowOpen(match)) ?? matches.find(isCurrentFallbackRound) ?? null;
   const currentInviteMatchId = currentInviteMatch?.id ?? "";
   const previousBets = currentInviteMatchId
     ? allPaidBets.filter((bet) => stringValue(bet, ["jogo_id"]) !== currentInviteMatchId)
@@ -1562,7 +1562,7 @@ export async function getAdminStats() {
     };
   });
 
-  const activeMatch = matches.find((match) => isBettingWindowOpen(match)) ?? matches.find(isBrazilJapanRound) ?? null;
+  const activeMatch = matches.find((match) => isBettingWindowOpen(match)) ?? matches.find(isCurrentFallbackRound) ?? null;
   let roundConversion: AdminRoundConversion = {
     visitors: 0,
     signups: 0,

@@ -135,13 +135,16 @@ async function resolvePixMatchRecord(
 
   const fallbackRound = getCurrentFallbackRound();
   const startsAtDate = fallbackRound.startsAt.slice(0, 10);
+  const nextDay = new Date(`${startsAtDate}T00:00:00-03:00`);
+  nextDay.setDate(nextDay.getDate() + 1);
+  const nextDayDate = nextDay.toISOString().slice(0, 10);
   const { data: existingRows, error: existingError } = await supabase
     .from("jogos")
     .select("id,time_da_casa,time_visitante,data_de_correspondencia")
     .eq("time_da_casa", fallbackRound.homeTeam)
     .eq("time_visitante", fallbackRound.awayTeam)
     .gte("data_de_correspondencia", `${startsAtDate}T00:00:00-03:00`)
-    .lt("data_de_correspondencia", "2026-06-30T00:00:00-03:00")
+    .lt("data_de_correspondencia", `${nextDayDate}T00:00:00-03:00`)
     .limit(1);
 
   if (existingError) {

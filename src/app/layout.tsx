@@ -10,11 +10,11 @@ import { SUPPORT_WHATSAPP_URL } from "@/lib/support";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Brasil x Japão | Bolão Jogos do Brasil",
-  description: "Palpite no jogo Brasil x Japão da Copa do Mundo. Rodada aberta ate 29/06/2026 as 13:45.",
+  title: "Brasil x Noruega | Bolão Jogos do Brasil",
+  description: "Palpite no jogo Brasil x Noruega da Copa do Mundo. Rodada aberta ate 05/07/2026 as 16:45.",
   openGraph: {
-    title: "Brasil x Japão | Bolão Jogos do Brasil",
-    description: "Rodada aberta para Brasil x Japão. Faça seu palpite e acompanhe a premiação atual.",
+    title: "Brasil x Noruega | Bolão Jogos do Brasil",
+    description: "Rodada aberta para Brasil x Noruega. Faça seu palpite e acompanhe a premiação atual.",
     type: "website"
   }
 };

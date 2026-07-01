@@ -13,6 +13,8 @@ const COUNTRY_FLAGS: Record<string, string> = {
   japão: "🇯🇵",
   japan: "🇯🇵",
   marrocos: "🇲🇦",
+  norway: "🇳🇴",
+  noruega: "🇳🇴",
   portugal: "🇵🇹",
   scotland: SCOTLAND_FLAG
 };
