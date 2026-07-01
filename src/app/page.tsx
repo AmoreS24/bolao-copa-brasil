@@ -18,7 +18,7 @@ export const fetchCache = "force-no-store";
 const CURRENT_ROUND_BASE_ENTRY = 10;
 const ROUND_THREE_MINIMUM_PRIZE = 250;
 const ROUND_GUESS_GOAL = 50;
-const PUBLIC_PRIZES_PAID_TOTAL = 700;
+const PUBLIC_PRIZES_PAID_TOTAL = 950;
 const KNOCKOUT_STAGE_LABEL = "Mata-mata • Oitavas de final";
 const LAST_WINNERS = [
   { name: "Lidiane Santos Barreto", prize: 125 },
@@ -145,19 +145,30 @@ export default async function Home() {
                 <p className="mt-1 text-xl font-black">{currency(publicEntryValue)}</p>
               </div>
             </div>
-            <div className="mx-auto mt-3 max-w-2xl rounded-lg border border-brasil-yellow/70 bg-brasil-navy px-4 py-3 text-left text-white shadow-field">
-              <p className="text-sm font-black text-brasil-yellow">
-                🎁 Promoção especial: quem confirmar o palpite até sábado às 12h concorre a um PIX de R$ 50,00.
-              </p>
-              <p className="mt-1 text-xs font-semibold leading-relaxed text-white/82">
-                Pagamento confirmado até sábado às 12h. 1 número por participante. Sorteio sábado às 12h30. O PIX promocional não interfere no prêmio principal da rodada.
-              </p>
+            <div className="mx-auto mt-3 max-w-2xl overflow-hidden rounded-lg border border-brasil-yellow/70 bg-white text-left text-brasil-navy shadow-[0_18px_44px_rgba(255,214,0,0.2)]">
+              <div className="grid gap-3 p-4 sm:grid-cols-[auto_1fr] sm:items-center">
+                <span className="grid h-12 w-12 place-items-center rounded-full bg-brasil-yellow text-xl shadow-field" aria-hidden>
+                  🎁
+                </span>
+                <div>
+                  <p className="text-sm font-black uppercase tracking-[0.14em] text-brasil-green">Promoção especial</p>
+                  <p className="mt-1 text-base font-black leading-snug text-brasil-navy">
+                    Faça seu palpite até sábado às 12h e concorra a um PIX de R$ 50,00.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-1 border-t border-brasil-yellow/30 bg-brasil-light px-4 py-3 text-xs font-bold leading-relaxed text-slate-700 sm:grid-cols-2">
+                <p>Pagamento precisa estar confirmado até sábado às 12h.</p>
+                <p>1 número por participante.</p>
+                <p>Sorteio sábado às 18h.</p>
+                <p>O PIX promocional não interfere no prêmio principal da rodada.</p>
+              </div>
             </div>
             <div className="mx-auto mt-3 max-w-2xl rounded-lg border border-brasil-yellow bg-brasil-yellow p-1 shadow-[0_16px_42px_rgba(255,214,0,0.28)]">
               <div className="rounded-md bg-white px-4 py-4 text-left text-brasil-navy sm:px-5">
                 <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
                   <div className="grid gap-2 text-sm font-black sm:text-base">
-                    <p>🏆 Já pagamos R$ 700,00 em premiações.</p>
+                    <p>🏆 Já pagamos R$ 950,00 em premiações.</p>
                     <p>👥 6 ganhadores premiados.</p>
                     <p className="flex items-center gap-2">
                       <CheckCircle2 size={18} className="text-brasil-green" aria-hidden />
